@@ -1,0 +1,6 @@
+const ERROR_TYPES = {
+  FATAL:'FATAL',
+  RECOVER:'RECOVER'
+}
+
+export {ERROR_TYPES}
