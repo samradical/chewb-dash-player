@@ -9,8 +9,8 @@ class VideoCanvas {
   constructor(mediaSource, options, videoBufferOptions = {}) {
     this._mediaSource = mediaSource
     this.options = options;
-    this._width = options.videoWidth || W
-    this._height = options.videoHeight || H
+    this._width = options.elAttributes.width || W
+    this._height = options.elAttributes.height || H
       //this.fpsLoop = Math.floor(60 / (options.fps || 30))
     this.fpsLoop = 0
     this.videoBufferOptions = videoBufferOptions;

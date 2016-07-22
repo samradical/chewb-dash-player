@@ -3,4 +3,4 @@ const ERROR_TYPES = {
   RECOVER:'RECOVER'
 }
 
-export {ERROR_TYPES}
+export default {ERROR_TYPES}

@@ -1,4 +1,8 @@
-import VjManager from './player/VjManager'
-import Options from './options'
+import Player from './player/vj-mediasource-manager'
+import { controller, mediaSource, videoController } from './options'
 
-export {Options, VjManager}
+let options = controller
+
+export { controller, mediaSource, videoController, Player }
+
+export default Player

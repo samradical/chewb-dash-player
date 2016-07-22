@@ -145,6 +145,7 @@ class VideoController extends ControllerBase {
   _getSidxAndAdd(vId) {
     return this._getSidx(vId)
       .then((sidx) => {
+        console.log(sidx);
         return this._createReferenceIndexFromResults([sidx]);
       });
   }

@@ -28,11 +28,14 @@ const VjMediaSourceLoader = (() => {
     return responseText;
   }
 
-  function _xhr(vo, url, formData) {
+  function _xhr(vo, url, formData, headers = {}) {
     return new Q((resolve, reject) => {
       let xhr = new XMLHttpRequest();
-      xhr.open('POST', url, true);
+      xhr.open('GET', url, true);
       xhr.responseType = 'arraybuffer';
+      Object.keys(headers).forEach(key => {
+        xhr.setRequestHeader(key,headers[key] )
+      })
 
       function _onXhrError() {
         xhr.removeEventListener(EVENTS.ABORT, _onXhrError);
@@ -73,21 +76,33 @@ const VjMediaSourceLoader = (() => {
       _indexCaches.shift()
     }
 
-    let _indexCache = _indexCaches[vo.videoId]
+    let _indexCache = _indexCaches[vo.id]
     if (_indexCache) {
       if (VERBOSE) {
-        console.log(`Got index range of ${vo.videoId} from cache`);
+        console.log(`Got index range of ${vo.id} from cache`);
       }
       return Q.resolve(_indexCache)
     }
+    let _headers = {
+      'Range': 'bytes=' + vo.indexRange,
+      'X-Accel-Buffering': 'no',
+      //'Content-Length': vo.indexLength,
+      'Accept-Ranges': 'bytes',
+      'Content-Type': 'video/mp4',
+      "Access-Control-Allow-Origin": "*"
+    }
     let formData = new FormData();
     formData.append('url', vo.url);
+    formData.append('headers', _headers);
     formData.append('indexRange', vo.indexRange);
     formData.append('indexLength', vo.indexLength);
-    return _xhr(vo, SERVER_BASE + 'getVideoIndex', formData)
+    console.log("---------------");
+    console.log(_headers);
+    console.log("---------------");
+    return _xhr(vo, vo.indexUrl, formData, _headers)
       .then((resp) => {
         if (INDEX_CACHING) {
-          _indexCaches[vo.videoId] = resp
+          _indexCaches[vo.id] = resp
         }
         return resp
       })
@@ -101,8 +116,15 @@ const VjMediaSourceLoader = (() => {
     formData.append('url', vo.url);
     formData.append('byteRange', vo.byteRange);
     formData.append('byteLength', vo.byteLength);
-
-    return _xhr(vo, SERVER_BASE + 'getVideo', formData)
+    let _headers = {
+      'Range': 'bytes=' + vo.byteRange,
+      'X-Accel-Buffering': 'no',
+      //'Content-Length': vo.byteLength,
+      'Accept-Ranges': 'bytes',
+      'Content-Type': 'video/mp4',
+      "Access-Control-Allow-Origin": "*"
+    }
+    return _xhr(vo, vo.segmentUrl, formData, _headers)
   }
 
   return {

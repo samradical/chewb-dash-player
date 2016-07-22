@@ -6,7 +6,6 @@ import {
 import Loader from './vj-mediasource-loader';
 import Signals from 'signals';
 import Q from 'bluebird';
-
 const { ERROR_TYPES } = Constants;
 
 let VERBOSE = true;
@@ -18,6 +17,11 @@ class VjMediaSource {
   constructor(options = {}) {
     let _type = options.quality.audioOnly ? 'audio' : 'video'
     let el = document.createElement(_type);
+    Object.keys(options.elAttributes).forEach(key => {
+      el.setAttribute(key, options.elAttributes[key]);
+    })
+    el.setAttribute('crossOrigin', 'anonymous');
+    el.setAttribute('crossorigin', 'anonymous');
     el.setAttribute('controls', 'true');
     if (!options.paused) {
       el.setAttribute('autoplay', 'true');
@@ -137,7 +141,7 @@ class VjMediaSource {
           setTimeout(() => {
             console.log(this.mediaSource.sourceBuffers);
             this.mediaSource.removeEventListener('sourceopen', this.onSourceOpenBound);
-            this.currentCodec = codecs;
+            this.currentCodec = codecs || this.currentCodec;
             this.mediaSource.addEventListener('addsourcebuffer', () => {
               console.log("Mediasource");
             })
@@ -254,7 +258,6 @@ class VjMediaSource {
 
   addVo(currentVo) {
     return new Q((resolve, reject) => {
-
       if (this._addingSegment) {
         return reject(new Error(`Vo being added`))
       }
@@ -334,7 +337,6 @@ class VjMediaSource {
                 off = this.sourceBuffer.timestampOffset - this.currentVo['timestampOffset'];
                 return this._trySettingOffset(this.currentVo, off)
                   .then(() => {
-                    console.log(this.currentVo);
                     return Loader.range(this.currentVo)
                       .then((rangeData) => {
                         return this._addResponse(this.currentVo, rangeData)
@@ -390,20 +392,25 @@ class VjMediaSource {
       function _onInitAdded() {
         _self.sourceBuffer.removeEventListener('updateend', _onInitAdded);
         if (VERBOSE) {
-          console.log("Init response added: ", vo.videoId);
+          console.log("Init response added: ", vo.videoId || vo.id);
         }
         resolve()
+      }
+
+      function _tryAppend(){
+        try {
+          _self.sourceBuffer.appendBuffer(initResp);
+        } catch (e) {
+          //_self.newBufferSouce().then(_tryAppend).finally()
+          reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId || vo.id}`))
+        }
       }
 
       if (this._canUpdate() && this.sourceBuffer) {
         this.sourceBuffer.removeEventListener('updatestart', this.onBufferUpdateStartBound);
         this.sourceBuffer.removeEventListener('updateend', this.onBufferUpdateEndBound);
         this.sourceBuffer.addEventListener('updateend', _onInitAdded);
-        try {
-          this.sourceBuffer.appendBuffer(initResp);
-        } catch (e) {
-          reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId}`))
-        }
+        _tryAppend()
       } else {
         console.log(`Cannot update init!`);
       }
@@ -436,7 +443,7 @@ class VjMediaSource {
             this.videoElement.currentTime = _t
           }
           if (VERBOSE) {
-            console.log("Added segment: ", vo.videoId, "Total duration:", this.totalDuration);
+            console.log("Added segment: ", vo.id, "Total duration:", this.totalDuration);
           }
           this.segmentAddedSignal.dispatch()
         } catch (e) {

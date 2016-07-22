@@ -10,6 +10,7 @@ import Signals from 'signals';
 
 import VjMediaSource from './vj-mediasource';
 import VjVideoCanvas from './vj-video-canvas';
+import ControllerYoutubeVideo from './controllers/vj-controller-youtube-video';
 import ControllerVideo from './controllers/vj-controller-video';
 
 import VjUtils from './vj-utils';
@@ -126,7 +127,11 @@ class VjManager {
     let _controller,
       _controllerOptions = _.assign({}, options, options.controller)
     if (!_isAudio) {
-      _controller = new ControllerVideo(_ms, _controllerOptions)
+      if(_controllerOptions.playlists.length){
+        _controller = new ControllerYoutubeVideo(_ms, _controllerOptions)
+      }else{
+        _controller = new ControllerVideo(_ms, _controllerOptions)
+      }
     }
 
     _group.mediasource = _ms
@@ -168,9 +173,14 @@ class VjManager {
   }
 
   get mediaSources() {
-    console.log(this.playerGroups);
     return this.playerGroups.map(group => {
       return group.mediasource
+    })
+  }
+
+  get controllers(){
+    return this.playerGroups.map(group => {
+      return group.controller
     })
   }
 }

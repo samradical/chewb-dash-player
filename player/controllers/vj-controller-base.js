@@ -27,6 +27,10 @@ class ControllerBase {
 
     this._extentions = {}
 
+    this._options = options
+
+    this._ServerService.setServerBase(this._options.serverBase)
+
     Emitter.on(`${options.id}:controller:video:previous:video`, this._previousVideoBound)
     Emitter.on(`${options.id}:controller:video:next:video`, this._nextVideoBound)
     Emitter.on(`${options.id}:controller:video:previous:segment`, this._previousSegmentBound)
@@ -75,7 +79,6 @@ class ControllerBase {
   _previousSegment(){
     let _videoVo = this.currentVideoVo
     this._previousVideoVoSegment(_videoVo)
-
   }
 
   _loadNextSegmentAndSkip() {
@@ -112,6 +115,12 @@ class ControllerBase {
 
   getVo() {
 
+  }
+
+  nextVideoById(id){
+    this.currentVideoId = id
+    this._loadNextSegment().finally()
+    //this._loadNextSegmentAndSkip()
   }
 
   _onMediaSourceReady(mediaSource) {
