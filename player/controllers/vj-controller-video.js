@@ -29,8 +29,13 @@ class VideoController extends ControllerBase {
 
     this._loadJsons(this._jsonsUrls).then(jsons => {
       this._mpds = jsons
-      if(this._options.noAutoStart){
+      if (this._options.noAutoStart) {
         this._loadNextSegment()
+      }
+      if (this._options.shufflePlaylist) {
+        this._mpds.forEach(data => {
+          Utils.shuffle(data.sidx.references)
+        })
       }
     })
   }
@@ -49,16 +54,18 @@ class VideoController extends ControllerBase {
     let _references = data.sidx.references
     _videoVo.refLength = _references.length
     console.log(data);
-    console.log(_references);
     console.log(_videoVo);
     let _ref = _references[_videoVo.refIndex]
     let _vo = VjUtils.voFromRef(data, _ref);
     _videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
-    console.log(_vo);
     return this._mediaSource.addVo(_vo)
-    .catch(err => {
-      console.log(err);
-    })
+      .catch(err => {
+        console.log(err);
+      })
+      .then(mediaSource => {
+        this.voAddedSignal.dispatch(mediaSource)
+        return mediaSource
+      })
   }
 
   /*
@@ -112,7 +119,7 @@ class VideoController extends ControllerBase {
 
   set currentVideoId(id) {
     this._currentVideoId = id
-    this.currentVideoIndex = this._mpds.indexOf(_.find(this._mpds, {id:id}))
+    this.currentVideoIndex = this._mpds.indexOf(_.find(this._mpds, { id: id }))
   }
 
   get currentVideoId() {

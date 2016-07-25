@@ -8,7 +8,7 @@ import {
 
 import Signals from 'signals';
 
-import VjMediaSource from './vj-mediasource';
+import VjMediaSource from './vj-mediasource-socket';
 import VjVideoCanvas from './vj-video-canvas';
 import ControllerYoutubeVideo from './controllers/vj-controller-youtube-video';
 import ControllerVideo from './controllers/vj-controller-video';
@@ -20,6 +20,7 @@ class VjManager {
   constructor(options = {}) {
     this.options = options
     this.mediaSourcesConfigs = options.mediaSources;
+    console.log(this.mediaSourcesConfigs);
 
     this.playerGroups = [];
     this.videoCanvases = [];
@@ -121,17 +122,16 @@ class VjManager {
       this._videoCanvasesLength = this.videoCanvases.length
     }
     //options.controller.mediaSource = _ms
-    if (options.verbose) {
-      this.parent.appendChild(_ms.el);
-    }
     let _controller,
       _controllerOptions = _.assign({}, options, options.controller)
-    if (!_isAudio) {
-      if(_controllerOptions.playlists.length){
-        _controller = new ControllerYoutubeVideo(_ms, _controllerOptions)
-      }else{
-        _controller = new ControllerVideo(_ms, _controllerOptions)
-      }
+    if (_controllerOptions.playlists.length) {
+      _controller = new ControllerYoutubeVideo(_ms, _controllerOptions)
+    } else {
+      _controller = new ControllerVideo(_ms, _controllerOptions)
+    }
+
+    if (_controllerOptions.verbose) {
+      this.parent.appendChild(_ms.el);
     }
 
     _group.mediasource = _ms
@@ -178,7 +178,7 @@ class VjManager {
     })
   }
 
-  get controllers(){
+  get controllers() {
     return this.playerGroups.map(group => {
       return group.controller
     })

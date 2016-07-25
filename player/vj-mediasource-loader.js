@@ -31,7 +31,8 @@ const VjMediaSourceLoader = (() => {
   function _xhr(vo, url, formData, headers = {}) {
     return new Q((resolve, reject) => {
       let xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
+      let _type = url.indexOf('getVideo') > -1 ? 'POST' : 'GET'
+      xhr.open(_type, url, true);
       xhr.responseType = 'arraybuffer';
       Object.keys(headers).forEach(key => {
         xhr.setRequestHeader(key,headers[key] )
@@ -88,7 +89,7 @@ const VjMediaSourceLoader = (() => {
       'X-Accel-Buffering': 'no',
       //'Content-Length': vo.indexLength,
       'Accept-Ranges': 'bytes',
-      'Content-Type': 'video/mp4',
+      'Content-Type': 'multipart/form-data',
       "Access-Control-Allow-Origin": "*"
     }
     let formData = new FormData();
@@ -121,7 +122,7 @@ const VjMediaSourceLoader = (() => {
       'X-Accel-Buffering': 'no',
       //'Content-Length': vo.byteLength,
       'Accept-Ranges': 'bytes',
-      'Content-Type': 'video/mp4',
+      'Content-Type': 'multipart/form-data',
       "Access-Control-Allow-Origin": "*"
     }
     return _xhr(vo, vo.segmentUrl, formData, _headers)

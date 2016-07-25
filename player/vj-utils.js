@@ -23,6 +23,8 @@ const DEFAULTS = {
   duration: 5
 }
 
+let SERVICE_SERVER_BASE = window.SERVER_BASE || 'http://0.0.0.0:8080/'
+
 /*
 if its youtube make adjustment
 */
@@ -111,6 +113,11 @@ Utils.combineRefs = (data, startIndex, endIndex, options = {}) => {
   _.forIn(options, (val, key) => {
     videoVo[key] = val;
   })
+  if(!data.youtubeDl){
+    videoVo.url += '&range=' + videoVo.byteRange;
+  }
+  videoVo.videoId = data.videoId;
+  videoVo.id = data.id || videoVo.videoId
   return videoVo;
 }
 
@@ -130,15 +137,19 @@ Utils.voFromRef = (item, ref, options = DEFAULTS) => {
   vo.codecs = item.codecs;
   vo.videoId = item.videoId;
   vo.id = item.id || vo.videoId
+  vo.youtubeDl = item.youtubeDl
   vo.indexRange = item.indexRange;
   vo.indexLength = sidx.firstOffset;
-  if (item.videoId) {
-    vo.indexUrl = SERVER_BASE + 'getVideoIndex'
-    vo.segmentUrl = SERVER_BASE + 'getVideo'
+  if(!vo.youtubeDl){
+    vo.url += '&range=' + obj.byteRange;
+  }
+  /*if (item.videoId) {
+    vo.indexUrl = SERVICE_SERVER_BASE + 'getVideoIndex'
+    vo.segmentUrl = SERVICE_SERVER_BASE + 'getVideo'
   } else {
   	vo.indexUrl = vo.url
   	vo.segmentUrl = vo.url
-  }
+  }*/
   return vo;
 }
 

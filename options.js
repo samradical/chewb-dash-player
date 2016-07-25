@@ -5,16 +5,15 @@
 */
 
 let videoController = {
-  playlists: [],
-  jsonUrls: [],
-  shufflePlaylist: true,
-  noAutoStart:false,
   extentions: ["loop"]
 }
 
 let mediaSource = {
   id: "videoOne",
-  serverBase: "http://0.0.0.0:8080/",
+  playlists: [],
+  jsonUrls: [],
+  shufflePlaylist: true,
+  noAutoStart:false,
   elAttributes:{
     width: 640,
     height: 360,
@@ -31,12 +30,13 @@ let mediaSource = {
   verbose: false
 }
 
-let controller = {
+let Controller = {
   el: undefined,
   fps: 30,
   autoUpdate: false,
+  serverBase: "http://0.0.0.0:8080/",
   mediaSources: [mediaSource]
 }
 
 
-export { controller, mediaSource, videoController }
+export { Controller }

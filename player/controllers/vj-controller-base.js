@@ -7,6 +7,7 @@ import {
 } from '../../utils'
 
 import ServerService from '../../service/serverService';
+import SocketService from '../../service/socketService';
 
 import { VideoLoop } from './extentions'
 
@@ -16,8 +17,11 @@ const EXT_MAP = {
 
 class ControllerBase {
   constructor(mediaSource, options) {
+    this._options = options
     this._ServerService = ServerService
+    this._SocketService = new SocketService(this._options.serverBase)
     this._addVoSignal = new Signals()
+    this._voAddedSignal = new Signals()
     this._emitVoBound = this._onMediaSourceReady.bind(this)
     this._nextVideoBound = this._nextVideo.bind(this)
     this._previousVideoBound = this._previousVideo.bind(this)
@@ -27,8 +31,6 @@ class ControllerBase {
 
     this._extentions = {}
 
-    this._options = options
-
     this._ServerService.setServerBase(this._options.serverBase)
 
     Emitter.on(`${options.id}:controller:video:previous:video`, this._previousVideoBound)
@@ -37,10 +39,24 @@ class ControllerBase {
     Emitter.on(`${options.id}:controller:video:next:segment`, this._nextSegmentBound)
 
     this._createExtentions(mediaSource, options)
+
+    this._SocketService.handshakeSignal.addOnce(() => {
+      if (!this._options.paused) {
+        this.addVo()
+      }
+    })
+  }
+
+  addVo() {
+    this._loadNextSegment().finally()
   }
 
   get addVoSignal() {
     return this._addVoSignal
+  }
+
+  get voAddedSignal() {
+    return this._voAddedSignal
   }
 
   get options() {
@@ -71,33 +87,33 @@ class ControllerBase {
     this._loadNextSegmentAndSkip()
   }
 
-  _nextSegment(){
+  _nextSegment() {
     let _videoVo = this.currentVideoVo
     this._nextVideoVoSegment(_videoVo)
   }
 
-  _previousSegment(){
+  _previousSegment() {
     let _videoVo = this.currentVideoVo
     this._previousVideoVoSegment(_videoVo)
   }
 
   _loadNextSegmentAndSkip() {
     this._loadNextSegment()
-      .then((addedResult={}) => {
+      .then((addedResult = {}) => {
         this._mediaSource.stepForward(addedResult.duration)
       }).finally()
   }
 
-  _nextVideoVoSegment(videoVo){
+  _nextVideoVoSegment(videoVo) {
     let _s = videoVo.segIndex++
-    _s = (_s > videoVo.refLength-1) ? 0 : _s
+      _s = (_s > videoVo.refLength - 1) ? 0 : _s
     this._loadNextSegmentAndSkip()
   }
 
-  _previousVideoVoSegment(videoVo){
+  _previousVideoVoSegment(videoVo) {
     //it moved
-   let _s = videoVo.segIndex-=2
-    _s = (_s < 0) ? videoVo.refLength-1 : _s
+    let _s = videoVo.segIndex -= 2
+    _s = (_s < 0) ? videoVo.refLength - 1 : _s
     this._loadNextSegmentAndSkip()
   }
 
@@ -109,18 +125,14 @@ class ControllerBase {
 
   }
 
-  addVo() {
-
-  }
-
   getVo() {
 
   }
 
-  nextVideoById(id){
+  nextVideoById(id) {
     this.currentVideoId = id
-    this._loadNextSegment().finally()
-    //this._loadNextSegmentAndSkip()
+    return this._loadNextSegment()
+      //this._loadNextSegmentAndSkip()
   }
 
   _onMediaSourceReady(mediaSource) {

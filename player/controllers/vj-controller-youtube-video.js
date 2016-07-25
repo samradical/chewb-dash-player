@@ -29,10 +29,6 @@ class VideoController extends ControllerBase {
 
     this._barCounter = 0
 
-    if (!options.paused) {
-      this.addVo()
-    }
-
     this._playedVideoVos = {
       //videoId...{}
     }
@@ -47,12 +43,9 @@ class VideoController extends ControllerBase {
     }*/
   }
 
-  addVo() {
-      this._loadNextSegment().finally()
-    }
-    /*
-    Add from a phrase to MS
-    */
+  /*
+  Add from a phrase to MS
+  */
   addVoFromPhrase(phrases) {
     if (phrases.length) {
       Q.map(phrases, (phrase) => {
@@ -85,23 +78,47 @@ class VideoController extends ControllerBase {
   }
 
   _loadNextSegment(sub = {}) {
+    console.log("_loadNextSegment");
     return this._getPlaylistVideoIds()
       .then(playlistVideoIds => {
+        console.log(this.currentVideoId);
         return this._getSidx(this.currentVideoId)
           .then(data => {
             let _videoVo = this.currentVideoVo
+              //console.log(_videoVo);
             let _references = data.sidx.references
             _videoVo.refLength = _references.length
             let _ref = _references[_videoVo.refIndex]
-            let _vo = VjUtils.voFromRef(data, _ref);
+              //console.log(_ref);
+            //let _vo = VjUtils.voFromRef(data, _ref, this._options);
+            let _vo = VjUtils.combineRefs(data, 12, 20, this._options);
             _videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
-            return this._mediaSource.addVo(_vo)
+            console.log(_vo);
+            return this._SocketService
+              .getVideoRange({
+                url: _vo.url,
+                range: _vo.indexRange,
+                youtubeDl: _vo.youtubeDl
+              })
+              .then(buffer => {
+                _vo.indexBuffer = buffer
+                return this._SocketService
+                  .getVideoRange({
+                    url: _vo.url,
+                    range: _vo.byteRange,
+                    youtubeDl: _vo.youtubeDl
+                  })
+                  .then(buffer => {
+                    _vo.videoBuffer = buffer
+                    return this._mediaSource.addVo(_vo)
+                  })
+              })
           })
           .catch(err => {
             //this._handleVoError(err)
           })
       })
-      .catch(err=>{
+      .catch(err => {
 
       })
   }
@@ -163,17 +180,25 @@ class VideoController extends ControllerBase {
   */
   _getSidx(vId, quality) {
       quality = quality || this._options.quality
-      return this._ServerService.getSidx(vId, quality)
-        .then((sidx) => {
+      return this._SocketService
+        .getSidx(_.assign({}, quality, { id: vId }))
+        .then(sidx => {
+          console.log(sidx);
           this._currentSidx = sidx
           return this._currentSidx
         })
+        /*return this._ServerService.getSidx(vId, quality)
+          .then((sidx) => {
+            this._currentSidx = sidx
+            return this._currentSidx
+          })*/
     }
     /*
     Get all the video Ids from playlists
     */
   _getPlaylistVideoIds() {
     return new Q((resolve, reject) => {
+      console.log(this.youtubeItemIds);
       if (this.youtubeItemIds.length) {
         resolve(this.youtubeItemIds)
       } else {
@@ -244,7 +269,7 @@ class VideoController extends ControllerBase {
     return this.youtubeItemIds[this.currentVideoIndex]
   }
 
-  get currentVideoVo(){
+  get currentVideoVo() {
     return this._getPlayedVideoVo(this.currentVideoId)
   }
 

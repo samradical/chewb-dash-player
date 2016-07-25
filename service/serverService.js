@@ -34,7 +34,7 @@ const _createError = (message) => {
   return proxiedError
 }
 
-let SERVICE_SERVER_BASE = window.SERVER_BASE || '0.0.0.0:9999'
+let SERVICE_SERVER_BASE = window.SERVER_BASE || 'http://0.0.0.0:8080/'
 
 
 const ServerService = {
