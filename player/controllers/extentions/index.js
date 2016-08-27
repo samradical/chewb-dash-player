@@ -1,2 +1,3 @@
 import VideoLoop from './vj-video-ext-loop'
-export {VideoLoop}
+import Shuffle from './vj-video-ext-shuffle'
+export {VideoLoop,Shuffle}

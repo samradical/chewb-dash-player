@@ -31,8 +31,7 @@ const VjMediaSourceLoader = (() => {
   function _xhr(vo, url, formData, headers = {}) {
     return new Q((resolve, reject) => {
       let xhr = new XMLHttpRequest();
-      let _type = url.indexOf('getVideo') > -1 ? 'POST' : 'GET'
-      xhr.open(_type, url, true);
+      xhr.open('GET', url, true);
       xhr.responseType = 'arraybuffer';
       Object.keys(headers).forEach(key => {
         xhr.setRequestHeader(key,headers[key] )
@@ -69,7 +68,7 @@ const VjMediaSourceLoader = (() => {
     })
   }
 
-  function indexRange(vo) {
+  function indexRange(vo,url) {
     //****remove old cache
     let _videoCacheIds = Object.keys(_indexCaches)
     if (_videoCacheIds.length > INDEX_CACHE_SIZE) {
@@ -92,15 +91,7 @@ const VjMediaSourceLoader = (() => {
       'Content-Type': 'multipart/form-data',
       "Access-Control-Allow-Origin": "*"
     }
-    let formData = new FormData();
-    formData.append('url', vo.url);
-    formData.append('headers', _headers);
-    formData.append('indexRange', vo.indexRange);
-    formData.append('indexLength', vo.indexLength);
-    console.log("---------------");
-    console.log(_headers);
-    console.log("---------------");
-    return _xhr(vo, vo.indexUrl, formData, _headers)
+    return _xhr(vo, url, null, _headers)
       .then((resp) => {
         if (INDEX_CACHING) {
           _indexCaches[vo.id] = resp
@@ -109,23 +100,19 @@ const VjMediaSourceLoader = (() => {
       })
   }
 
-  function range(vo) {
-    let formData = new FormData();
+  function range(vo, url) {
     if (VERBOSE) {
       console.log(vo.byteRange, vo.byteLength, vo.duration);
     }
-    formData.append('url', vo.url);
-    formData.append('byteRange', vo.byteRange);
-    formData.append('byteLength', vo.byteLength);
     let _headers = {
       'Range': 'bytes=' + vo.byteRange,
       'X-Accel-Buffering': 'no',
-      //'Content-Length': vo.byteLength,
+      //'Content-Length': vo.indexLength,
       'Accept-Ranges': 'bytes',
       'Content-Type': 'multipart/form-data',
       "Access-Control-Allow-Origin": "*"
     }
-    return _xhr(vo, vo.segmentUrl, formData, _headers)
+    return _xhr(vo, url, null, _headers)
   }
 
   return {

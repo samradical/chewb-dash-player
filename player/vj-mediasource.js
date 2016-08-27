@@ -130,7 +130,7 @@ class VjMediaSource {
     this.readySignal.dispatch(this);
     Emitter.emit('mediasource:ready', this)
     if (this.waitingLine.length) {
-      this.addVo(this.waitingLine.pop());
+      //this.addVo(this.waitingLine.pop());
     }
   }
 
@@ -402,6 +402,7 @@ class VjMediaSource {
           _self.sourceBuffer.appendBuffer(initResp);
         } catch (e) {
           //_self.newBufferSouce().then(_tryAppend).finally()
+          console.log(vo);
           reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId || vo.id}`))
         }
       }

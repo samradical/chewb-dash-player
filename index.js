@@ -1,6 +1,4 @@
 import Player from './player/vj-mediasource-manager'
-import { Controller } from './options'
+import Controller from './controller'
 
 export { Controller, Player }
-
-export default Player

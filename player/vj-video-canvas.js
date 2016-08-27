@@ -90,12 +90,12 @@ class VideoCanvas {
     this.bufferCtx = this.frameBuffer.getContext("2d");
     this.buffers.push(this.frameBuffer)
 
-    this.latestFrameBuffer = this._createCanvas(this._width, this._height);
+    /*this.latestFrameBuffer = this._createCanvas(this._width, this._height);
     this.latestBufferCtx = this.latestFrameBuffer.getContext("2d");
     this.buffers.push(this.latestFrameBuffer)
     if (this.options.verbose) {
       document.body.appendChild(this.latestFrameBuffer)
-    }
+    }*/
 
     this._setCanvasResolution()
   }
@@ -106,8 +106,8 @@ class VideoCanvas {
     }
     //if (this.counter % MOD_FRAMES === 0) {
 
-    this.latestBufferCtx.clearRect(0, 0, this.windowW, this.windowH);
-    this.latestBufferCtx.drawImage(
+    this.bufferCtx.clearRect(0, 0, this.windowW, this.windowH);
+    this.bufferCtx.drawImage(
       this.videoElement,
       0,
       0,
@@ -118,7 +118,7 @@ class VideoCanvas {
       this.fboWidth,
       this.fboHeight);
 
-    var data = this.latestBufferCtx.getImageData(0, 0, this.fboWidth, this.fboHeight);
+    /*var data = this.latestBufferCtx.getImageData(0, 0, this.fboWidth, this.fboHeight);
     this.frames.push(data);
     this.totalFrames = this.frames.length;
 
@@ -129,7 +129,7 @@ class VideoCanvas {
 
     this.bufferCtx.clearRect(0, 0, this.windowW, this.windowH);
     let _middleFrame = Math.floor(this.totalFrames / 2)
-    this.bufferCtx.putImageData(this.frames[_middleFrame], 0, 0);
+    this.bufferCtx.putImageData(this.frames[_middleFrame], 0, 0);*/
     //}
     this.counter++
   }
@@ -170,6 +170,10 @@ class VideoCanvas {
     this.windowW = w;
     this.windowH = h;
     //this._setCanvasResolution()
+  }
+
+  get el(){
+    return this.frameBuffer
   }
 };
 export default VideoCanvas;

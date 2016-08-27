@@ -122,9 +122,10 @@ const ServerService = {
         type: 'video',
         safeSearch: 'none'
       }, DEFAULTS, options));
-      $.get(`${SERVICE_SERVER_BASE}youtube/playlistItems`, params)
+
+      return $.get(`${SERVICE_SERVER_BASE}youtube/playlistItems`, params)
         .then((d) => {
-          resolve(d)
+          return resolve(d)
         })
     });
     return p

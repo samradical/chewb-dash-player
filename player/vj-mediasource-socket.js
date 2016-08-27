@@ -14,8 +14,8 @@ const BUFFER_MARGIN_2 = 0.7
 
 
 class VjMediaSource {
-  constructor(options = {}) {
-    let _type = options.quality.audioOnly ? 'audio' : 'video'
+  constructor(options = {}, type = 'video') {
+    let _type = type
     let el = document.createElement(_type);
     Object.keys(options.elAttributes).forEach(key => {
       el.setAttribute(key, options.elAttributes[key]);
@@ -28,6 +28,7 @@ class VjMediaSource {
     }
     this.options = options;
     this.el = el;
+    this._type = type
     if (!MediaSource) {
       throw new Error('NO MEDIASOURCE!');
     }
@@ -57,6 +58,8 @@ class VjMediaSource {
 
     this.readySignal = this.options.readySignal
     this.videoPlayingSignal = this.options.videoPlayingSignal
+    this.videoPausedSignal = this.options.videoPausedSignal
+    this.videoWaitingSignal = this.options.videoWaitingSignal
     this.videoStartedSignal = this.options.videoStartedSignal
     this.segmentAddedSignal = this.options.segmentAddedSignal
     this.timeUpdateSignal = this.options.timeUpdateSignal
@@ -86,7 +89,7 @@ class VjMediaSource {
         console.log("Playing");
       }
       this._waiting = false
-      this.videoPlayingSignal.dispatch()
+      this.videoPlayingSignal.dispatch(this)
     });
 
     this.videoElement.addEventListener("waiting", () => {
@@ -94,12 +97,14 @@ class VjMediaSource {
         console.log("Waiting");
       }
       this._waiting = true
+      this.videoWaitingSignal.dispatch(this)
     });
     this.videoElement.addEventListener("pause", () => {
       if (VERBOSE) {
         console.log("Pause");
       }
       this._waiting = true
+      this.videoPausedSignal.dispatch(this)
     });
 
     this.videoElement.addEventListener("loadstart", () => {
@@ -177,11 +182,11 @@ class VjMediaSource {
     let ct = this.videoElement.currentTime;
     if (ct > this.currentVo.startTime && !this.newVoStarted) {
       this.newVoStarted = true;
-      this.videoStartedSignal.dispatch(this.currentVo);
+      this.videoStartedSignal.dispatch(this);
       Emitter.emit('mediasource:videostarting', this)
     }
     //console.log(ct, this.totalDuration);
-    if (ct >= (this.totalDuration - BUFFER_MARGIN)) {
+    if (ct >= (this.totalDuration - this.options.timeBeforeRequestingNewClip)) {
       if (!this.requestingNewVo) {
         this.requestingNewVo = true;
         if (VERBOSE) {
@@ -198,7 +203,7 @@ class VjMediaSource {
         Emitter.emit('mediasource:ended', this)
       }
     }
-    this.timeUpdateSignal.dispatch(ct)
+    this.timeUpdateSignal.dispatch(this)
   }
 
   get el() {
@@ -219,6 +224,14 @@ class VjMediaSource {
 
   get waiting() {
     return this._waiting
+  }
+
+  get type(){
+    return this._type
+  }
+
+  get currentTime(){
+    return this.videoElement.currentTime
   }
 
   ////-----------------
@@ -292,6 +305,11 @@ class VjMediaSource {
   _readyToAdd(currentVo) {
     this.setCurrentVideoId(currentVo.id);
     this.mediaSource.duration = this.totalDuration;
+    if(VERBOSE){
+      console.log("-------------------------------------------------");
+      console.log(this._type, this.totalDuration ,currentVo.duration);
+      console.log("-------------------------------------------------");
+    }
     return this._addSegment(currentVo);
   }
 
@@ -327,7 +345,7 @@ class VjMediaSource {
     if (this.sourceBuffer.buffered.length > 0) {
       off = this.sourceBuffer.buffered.end(this.sourceBuffer.buffered.length - 1);
     }
-
+    console.log(currentVo);
     return this._trySettingOffset(this.currentVo, off)
       .then(() => {
         return this._addInitReponse(this.currentVo, this.currentVo.indexBuffer)
@@ -338,10 +356,7 @@ class VjMediaSource {
                 return this._addResponse(this.currentVo, this.currentVo.videoBuffer)
                   .then(() => {
                     this._addingSegment = false
-                    return {
-                      totalDuration: this.totalDuration,
-                      duration: this.currentVo.duration
-                    }
+                    return this
                   })
               })
           })
@@ -364,7 +379,7 @@ class VjMediaSource {
             resolve()
           } catch (e) {
             if (VERBOSE) {
-              console.log(`Error _trySettingOffset of: ${off}... ${e.toString()}`);
+              console.error(`Error _trySettingOffset of: ${off}... ${e.toString()}`);
             }
             resolve()
               //reject(new Error(`${ERROR_TYPES.FATAL}:${vo.videoId}`))
@@ -395,7 +410,9 @@ class VjMediaSource {
         try {
           _self.sourceBuffer.appendBuffer(initResp);
         } catch (e) {
+          console.log(vo);
           //_self.newBufferSouce().then(_tryAppend).finally()
+          console.log(e);
           reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId || vo.id}`))
         }
       }
@@ -406,7 +423,7 @@ class VjMediaSource {
         this.sourceBuffer.addEventListener('updateend', _onInitAdded);
         _tryAppend()
       } else {
-        console.log(`Cannot update init!`);
+        console.error(`Cannot update init!`);
       }
     })
   }
@@ -439,7 +456,7 @@ class VjMediaSource {
           if (VERBOSE) {
             console.log("Added segment: ", vo.id, "Total duration:", this.totalDuration);
           }
-          this.segmentAddedSignal.dispatch()
+          this.segmentAddedSignal.dispatch(this)
         } catch (e) {
           if (VERBOSE) {
             /*
@@ -451,7 +468,7 @@ class VjMediaSource {
           //reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId}`))
         }
       } else {
-        console.log(`Cannot update video!`);
+        console.error(`Cannot update video!`);
       }
     })
   }

@@ -1,7 +1,6 @@
 import Q from 'bluebird';
 import _ from 'lodash';
-
-import ControllerBase from './vj-controller-base';
+import Signals from 'signals';
 
 import {
   JsonLoader,
@@ -10,91 +9,136 @@ import {
   Constants
 } from '../../utils'
 
+import Loader from '../vj-mediasource-loader';
+import ControllerBase from './vj-controller-youtube-base';
+
 const { ERROR_TYPES } = Constants;
 let VIDEO_VO = {
   refIndex: 0,
+  currentRefDuration: 0,
+  watchedRefs: [],
+  timelineTotal: 0,
   refLength: undefined
 }
 
+import { VideoLoop, Shuffle } from './extentions'
+
+const EXT_MAP = {
+  loop: VideoLoop,
+  shuffle: Shuffle
+}
+
 import VjUtils from '../vj-utils';
+
 class VideoController extends ControllerBase {
 
-  constructor(mediaSource, options) {
-    super(mediaSource, options)
-    this.mediaSource = mediaSource
-    this._options = options
+  constructor(options) {
+    super(options)
     this._jsonsUrls = this._options.jsonUrls
+    this.init()
+  }
 
-    this._playedVideoVos = {}
-
+  init() {
     this._loadJsons(this._jsonsUrls).then(jsons => {
       this._mpds = jsons
-      if (this._options.noAutoStart) {
-        this._loadNextSegment()
-      }
+      console.log(this._mpds);
       if (this._options.shufflePlaylist) {
         this._mpds.forEach(data => {
           Utils.shuffle(data.sidx.references)
         })
       }
+      this._readyCheck.ready = true
+      Emitter.emit('user:ready', this)
+      this._tryStart()
+    })
+    this._initListeners()
+  }
+
+  _initListeners() {
+    this.mediaSources.forEach(ms => {
+      ms.endingSignal.add(this._onEndingSignalBound)
+      ms.timeUpdateSignal.add(this._onTimeupdateSignalBound)
+      ms.videoPlayingSignal.add(this._onVideoPlayingSignalBound)
+      ms.videoPausedSignal.add(this._onVideoPausedSignalBound)
     })
   }
 
-  addVo() {
-    this._loadNextSegment().finally()
-  }
-
-  _onEndingSignal() {
-    this._loadNextSegment().finally()
-  }
-
-  _loadNextSegment(sub = {}) {
-    let _videoVo = this.currentVideoVo
-    let data = this._mpds[this.currentVideoIndex]
-    let _references = data.sidx.references
-    _videoVo.refLength = _references.length
-    console.log(data);
-    console.log(_videoVo);
-    let _ref = _references[_videoVo.refIndex]
-    let _vo = VjUtils.voFromRef(data, _ref);
-    _videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
-    return this._mediaSource.addVo(_vo)
-      .catch(err => {
-        console.log(err);
-      })
-      .then(mediaSource => {
-        this.voAddedSignal.dispatch(mediaSource)
-        return mediaSource
-      })
-  }
-
-  /*
-  Something went wrong when trying to add the vo
-  */
-  _handleVoError(err) {
-    let { message } = err
-    let _type = message.split(':')[0]
-    let _videoId = message.split(':')[1]
-    switch (_type) {
-      case ERROR_TYPES.FATAL:
-        this._currentRef = undefined
-        this._mpds = this._filterById(this._mpds, _videoId)
-        return this._mediaSource.resetMediasource()
-          .then(() => {
-            return this._loadNextSegment()
-          })
-        break
+  update() {
+    if (this.videoCanvas) {
+      this.videoCanvas.update()
     }
+  }
+
+
+  /*addVo() {
+    return Q.map(this.mediaSources, mediaSource => {
+      return this._loadNextSegment(mediaSource)
+    }).finally()
+  }*/
+
+  _getMediaSourceVo(mediaSource) {
+
+    let _currentVideo = this.currentVideo
+    let _videoVo = this.currentVideoVo
+    let _references = _currentVideo.sidx.references
+    let _ref = _references[_videoVo.refIndex]
+    _videoVo.refLength = _references.length
+      //_videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
+    this._chooseVoRefIndex(_videoVo)
+
+    let _vo = VjUtils.combineRefsIndexs(
+      _currentVideo,
+      _videoVo,
+      this._options);
+
+    console.log(_vo);
+
+    return Loader.indexRange(_vo, _vo.indexUrl)
+      .then(buffer => {
+        _vo.indexBuffer = buffer
+        return Loader.range(_vo, _vo.rangeUrl)
+          .then(buffer => {
+            _vo.videoBuffer = buffer
+            return mediaSource.addVo(_vo)
+              .then(mediaSource => {
+                this.voAddedSignal.dispatch(mediaSource)
+                return mediaSource
+              })
+              .catch(err=>{
+                console.log(err);
+              })
+          })
+      })
+  }
+
+  nextVideoById(id) {
+    this.currentVideoId = id
+    return this._loadNextSegment().finally()
+  }
+
+  _setNextVideoId() {
+    let _c = this.currentVideoIndex
+    _c++
+    if (_c > this._mpds.length - 1) {
+      _c = 0
+    }
+    this.currentVideoIndex = _c
+  }
+
+  _createMpds(jsons) {
+    return jsons.map(videoJson => {
+      console.log(videoJson);
+      let _s = videoJson.split('/')
+      let id = _s[_s.length - 1]
+      return {
+        id: id,
+        sidx: videoJson
+      }
+    })
   }
 
   _loadJsons(jsons) {
     return JsonLoader.load(jsons)
-  }
-
-  _filterById(source, id) {
-    return source.filter(item => {
-      return !(item === id)
-    })
   }
 
   _getPlayedVideoVo(videoId) {
@@ -122,6 +166,10 @@ class VideoController extends ControllerBase {
     this.currentVideoIndex = this._mpds.indexOf(_.find(this._mpds, { id: id }))
   }
 
+  get currentVideo(){
+      return this._mpds[this.currentVideoIndex]
+  }
+
   get currentVideoId() {
     return this._mpds[this.currentVideoIndex].id
   }
@@ -136,6 +184,10 @@ class VideoController extends ControllerBase {
 
   _getRandomVideoId() {
     return this._mpds[Math.floor(Math.random() * this._mpds.length - 1)]
+  }
+
+  get voAddedSignal() {
+    return this._voAddedSignal
   }
 }
 

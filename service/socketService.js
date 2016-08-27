@@ -16,15 +16,15 @@ export default class Socket {
     this.sidxs = {}
   }
 
-  _onVideoSidx(data) {
-
+  _getCacheKey(options) {
+    return options.uuid
   }
 
-  _removeListener(string) {
-    let _func = this.socket._callbacks[`$${string}`]
-    if (_func) {
-      this.socket.removeListener(string, _func)
-    }
+  _getCache(options) {
+    let key = this._getCacheKey(options)
+    let _s = this.sidxs[key] || {}
+    this.sidxs[key] = _s
+    return this.sidxs[key]
   }
 
   _appendBuffer(buffer1, buffer2) {
@@ -35,53 +35,58 @@ export default class Socket {
   }
 
   getSidx(options) {
-    console.log("getSidx");
-    console.log(options);
     return new Q((yes, no) => {
-      let _existing = this.sidxs[options.id]
-      if(_existing){
-        return yes(_existing)
+      let _s = `rad:youtube:sidx:${options.uuid}:resp`
+      let _existing = this._getCache(options)
+
+      if (_existing.sidx) {
+        return yes(_existing.sidx)
       }
-      this._removeListener('rad:youtube:sidx:resp')
-      this.socket.on('rad:youtube:sidx:resp', (data) => {
+      _existing.indexResp = (data) => {
         if (typeof data !== 'Error' && data) {
-          console.log(typeof data);
-          console.log(data);
-          if(typeof data === 'Array'){
-            this.sidxs[options.id] = data[0]
-            yes(data[0])
-          }else{
-            this.sidxs[options.id] = data
-            yes(data)
+          if (data[0]) {
+            _existing.sidx = data[0]
+            yes(_existing.sidx)
+          } else {
+            _existing.sidx = data
+            yes(_existing.sidx)
           }
         } else {
           console.log(data);
           no(data)
         }
-      })
+      }
+      this.socket.on(_s, _existing.indexResp)
       this.socket.emit('rad:youtube:sidx', options)
     })
   }
 
-  getVideoRange(obj) {
+  getVideoRange(options) {
     return new Q((yes, no) => {
-      this._removeListener('rad:video:range:resp')
-      this._removeListener('rad:video:range:end')
-
       let _buffer
 
-      this.socket.on('rad:video:range:resp', (data) => {
+      let _existing = this._getCache(options)
+      let _s = `rad:video:range:${options.uuid}:resp`
+      let _e = `rad:video:range:${options.uuid}:end`
+      this.socket.removeListener(_s, _existing.rangeResp)
+      this.socket.removeListener(_e, _existing.rangeEnd)
+
+      _existing.rangeResp = (data) => {
         let _b = new Uint8Array(data)
         if (!_buffer) {
           _buffer = _b
         } else {
           _buffer = this._appendBuffer(_buffer, _b)
         }
-      })
-      this.socket.on('rad:video:range:end', (data) => {
+      }
+
+      _existing.rangeEnd = () => {
         yes(_buffer)
-      })
-      this.socket.emit('rad:video:range', obj)
+      }
+
+      this.socket.on(_s, _existing.rangeResp)
+      this.socket.on(_e, _existing.rangeEnd)
+      this.socket.emit('rad:video:range', options)
     })
   }
 }
