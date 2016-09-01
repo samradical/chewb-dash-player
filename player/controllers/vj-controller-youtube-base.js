@@ -86,6 +86,7 @@ class ControllerBase {
 
   _tryStart() {
     let _r = _.every(_.values(this._readyCheck), Boolean);
+    console.log(_r);
     if (_r) {
       this._initListeners()
       if (!this._options.paused && !this._options.noAutoStart) {

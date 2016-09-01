@@ -41,7 +41,7 @@ class VideoController extends ControllerBase {
   init() {
     this._getPlaylistVideoIds()
       .then(() => {
-        this._readyCheck.playlistsLoaded = true
+        this._readyCheck.ready = true
         this._tryStart()
       })
       .finally()
@@ -64,13 +64,13 @@ class VideoController extends ControllerBase {
         _videoVo.refLength = _references.length
           //_videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
         this._chooseVoRefIndex(_videoVo)
-        console.log(_videoVo);
+
         let _vo = VjUtils.combineRefsIndexs(
           data,
-          _videoVo.refIndex[0],
-          _videoVo.refIndex[1],
+          _videoVo,
           this._options);
 
+        console.log(_vo);
         return this._SocketService
           .getVideoRange({
             uuid: _uuid,
@@ -89,7 +89,15 @@ class VideoController extends ControllerBase {
               })
               .then(buffer => {
                 _vo.videoBuffer = buffer
-                return _vo
+                return mediaSource.addVo(_vo)
+                  .then(mediaSource => {
+                    this.voAddedSignal.dispatch(mediaSource)
+                    return mediaSource
+                  })
+                  .catch(err => {
+                    console.log(err);
+                  })
+                //return _vo
               })
           })
       })
