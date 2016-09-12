@@ -16,12 +16,13 @@ export default class VideoShuffle extends VideoBase {
   _chooseVoRefIndex(videoVo) {
     videoVo.refIndex = null
     while (!videoVo.refIndex) {
+    	//random ref
       let _r = Math.floor(Math.random() * videoVo.refLength)
-      //add some more
+      //add some more, could be 3 refs long
       let _add = Math.floor(Math.random() * MAX_REFS_IN_CLIP)
-      console.log(_add);
+      //hasnt watched this ref yet
       if (videoVo.watchedRefs.indexOf(_r) < 0) {
-        //cliup
+        //cliup at last
         let _max = Math.min(_r + _add, videoVo.refLength - 1)
         videoVo.refIndex = [_r, _max]
       }
@@ -32,9 +33,6 @@ export default class VideoShuffle extends VideoBase {
 
   _chooseCurrentVideoIndex() {
     let _r = Math.floor(Math.random() * this.youtubeItemIds.length)
-    console.log("---");
-    console.log(_r);
-    console.log("---");
     this._controller.currentVideoIndex = _r
   }
 

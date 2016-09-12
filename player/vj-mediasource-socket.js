@@ -8,7 +8,7 @@ import Signals from 'signals';
 import Q from 'bluebird';
 const { ERROR_TYPES } = Constants;
 
-let VERBOSE = true;
+let VERBOSE = false;
 const BUFFER_MARGIN = 4;
 const BUFFER_MARGIN_2 = 0.7
 

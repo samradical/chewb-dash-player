@@ -49,7 +49,7 @@ class ControllerBase {
     this._onVideoPausedSignalBound = this._onVideoPausedSignal.bind(this)
     this._onVideoWaitingSignalBound = this._onVideoWaitingSignal.bind(this)
 
-    this._extentions = {}
+    this._extensions = {}
     this._playedVideoVos = {
       //videoId...{}
     }
@@ -61,7 +61,7 @@ class ControllerBase {
     Emitter.on(`${options.id}:controller:video:previous:segment`, this._previousSegmentBound)
     Emitter.on(`${options.id}:controller:video:next:segment`, this._nextSegmentBound)
 
-    this._createExtentions(options)
+    this._createExtensions(options)
 
     this._SocketService.handshakeSignal.addOnce(() => {
       this._readyCheck.handshake = true
@@ -86,7 +86,6 @@ class ControllerBase {
 
   _tryStart() {
     let _r = _.every(_.values(this._readyCheck), Boolean);
-    console.log(_r);
     if (_r) {
       this._initListeners()
       if (!this._options.paused && !this._options.noAutoStart) {
@@ -106,10 +105,11 @@ class ControllerBase {
     })
   }
 
-  _createExtentions(options) {
-    let extentions = options.extentions || []
-    extentions.map(id => {
-      this._extentions[id] = new EXT_MAP[id](this, options)
+  _createExtensions(options) {
+  	console.log(options);
+    let extensions = options.extensions || []
+    extensions.map(id => {
+      this._extensions[id] = new EXT_MAP[id](this, options)
     })
   }
 
@@ -119,6 +119,9 @@ class ControllerBase {
     }, { concurrency: 1 })
   }
 
+  /*
+  Override this
+  */
   _getMediaSourceVo(mediaSource) {
 
   }
@@ -250,27 +253,12 @@ class ControllerBase {
     }
   }
 
-  _chooseVoRefIndex(videoVo) {
-    videoVo.refIndex = (videoVo.refIndex + 1) > (videoVo.refLength - 1) ? 0 : (videoVo.refIndex + 1)
-    videoVo.watchedRefs.push(videoVo.refIndex)
-  }
-
   _getOtherMediaSource(mediaSource) {
     let _i = this.mediaSources.indexOf(mediaSource)
     let _other = (_i + 1)
     _other = (_other >= this.mediaSources.length) ? 0 : _other;
     return this.mediaSources[_other]
   }
-
-  _onMediaSourceSet() {
-
-  }
-
-  getVo() {
-
-  }
-
-  _setNextVideoId() {}
 
   nextVideoById(id) {
     this.currentVideoId = id
