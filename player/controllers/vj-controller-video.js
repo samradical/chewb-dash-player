@@ -83,7 +83,7 @@ class VideoController extends ControllerBase {
     let _references = _currentVideo.sidx.references
     let _ref = _references[_videoVo.refIndex]
     _videoVo.refLength = _references.length
-      //_videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
+
     this._chooseVoRefIndex(_videoVo)
 
     let _vo = VjUtils.combineRefsIndexs(
@@ -109,6 +109,10 @@ class VideoController extends ControllerBase {
               })
           })
       })
+  }
+
+  _chooseVoRefIndex(videoVo){
+  	_videoVo.refIndex = (_videoVo.refIndex + 1) > (_references.length - 1) ? 0 : (_videoVo.refIndex + 1)
   }
 
   nextVideoById(id) {

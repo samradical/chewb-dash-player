@@ -30,6 +30,7 @@ class VideoController extends ControllerBase {
             //this.mediaSource = mediaSource
         this._options = options
         this._playlists = this._options.playlists
+        this._sidxQualityOptions = this._getSidxQualityOptions(this._options.quality)
 
         this.youtubeItems = [];
         this.youtubeItemIds = [];
@@ -47,6 +48,12 @@ class VideoController extends ControllerBase {
             .finally()
     }
 
+    _getSidxQualityOptions(quality) {
+        return {
+            resolution: quality.resolution
+        }
+    }
+
     _getMediaSourceVo(mediaSource) {
         //maybe a hack?
         this._tempMediaSource = mediaSource
@@ -56,7 +63,8 @@ class VideoController extends ControllerBase {
                 this.currentVideoId,
                 this._getSidxOptions(
                     mediaSource,
-                    this.currentVideoId
+                    this.currentVideoId,
+                    this._sidxQualityOptions
                 )
             )
             .then(data => {
@@ -92,13 +100,18 @@ class VideoController extends ControllerBase {
                             })
                             .then(buffer => {
                                 _vo.videoBuffer = buffer
-                                /*var buf = new ArrayBuffer(_vo.indexBuffer.length)
+                                var buf = new ArrayBuffer(_vo.indexBuffer.length)
                                 var bufView = new Uint8Array(buf);
                                 bufView.set(_vo.indexBuffer)
-                                this._SocketService.saveVideo({
+
+                                let i = Math.floor(Math.random() * 4)
+                                this._SocketService.addVideo({
                                     indexBuffer: buf,
-                                    buffer: _vo.videoBuffer
-                                })*/
+                                    rangeBuffer: _vo.videoBuffer,
+                                    saveName:_vo.videoId,
+                                    saveGroup:(i === 0)
+                                })
+
                                 return mediaSource.addVo(_vo)
                                     .then(mediaSource => {
                                         this.voAddedSignal.dispatch(mediaSource)
@@ -135,12 +148,12 @@ class VideoController extends ControllerBase {
     }
 
     /*For the API*/
-    _getSidxOptions(mediaSource, videoId) {
-        return {
+    _getSidxOptions(mediaSource, videoId, options) {
+        return _.assign({}, {
             videoOnly: (mediaSource.type === 'video'),
             audioOnly: (mediaSource.type === 'audio'),
             uuid: this._getUUID(mediaSource, videoId)
-        }
+        }, options)
     }
 
     /*
@@ -200,7 +213,6 @@ class VideoController extends ControllerBase {
     Get an sidx from vId
     */
     _getSidx(vId, options = {}) {
-            console.log(options);
             return this._SocketService
                 .getSidx(_.assign({}, options, { id: vId }))
                 .then(sidx => {
@@ -212,7 +224,6 @@ class VideoController extends ControllerBase {
         */
     _getPlaylistVideoIds() {
         return new Q((resolve, reject) => {
-            console.log(this.youtubeItemIds.length);
             if (this.youtubeItemIds.length) {
                 resolve(this.youtubeItemIds)
             } else {

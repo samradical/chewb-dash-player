@@ -90,7 +90,11 @@ export default class Socket {
         })
     }
 
-    saveVideo(obj) {
+    addVideo(obj) {
         this.socket.emit('rad:video:save', obj)
+    }
+
+    saveVideo() {
+        this.socket.emit('rad:video:save:end')
     }
 }

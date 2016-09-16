@@ -6,7 +6,7 @@ const Utils = {
 };
 
 
-Utils.urlParams = function() {
+Utils.urlParams = ()=> {
     var query;
     var pos = window.location.href.indexOf("?");
     if (pos == -1) return [];
@@ -75,11 +75,11 @@ Utils.sortByView = (a, b) => {
     return a.views - b.views;
 }
 
-Utils.getSpotifyAccessToken = function() {
+Utils.getSpotifyAccessToken = ()=> {
     return Cookies.get('rad-spotifyAccess');
 };
 
-Utils.getYoutubeAccessToken = function() {
+Utils.getYoutubeAccessToken = ()=> {
     return Cookies.get('rad-youtubeAccess');
 };
 
@@ -88,7 +88,7 @@ Utils.extractVideoIdFromUpload = function(string) {
     return s.split('/')[0];
 };
 
-Utils.shuffle = function(d) {
+Utils.shuffle = function(d = []) {
   for (var c = d.length - 1; c > 0; c--) {
     var b = Math.floor(Math.random() * (c + 1));
     var a = d[c];

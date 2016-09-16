@@ -17,7 +17,7 @@ import VjUtils from './vj-utils';
 
 class VjManager {
 
-  constructor(Controller = {}) {
+  constructor(Controller = {}, id="") {
     this.options = Controller.toJson()
     this.mediaSourcesConfigs = this.options.mediaSources;
 
