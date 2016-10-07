@@ -2,6 +2,14 @@ import IO from 'socket.io-client'
 import Q from 'bluebird';
 import Signals from 'signals';
 
+const YOUTUBE_DEFAULTS = {
+  maxResults: 50
+};
+
+import {
+  Cache
+} from '../utils'
+
 export default class Socket {
 
     constructor(server = "http://0.0.0.0:8080") {
@@ -38,14 +46,17 @@ export default class Socket {
         return new Q((yes, no) => {
             let _s = `rad:youtube:sidx:${options.uuid}:resp`
             let _existing = this._getCache(options)
+            this.socket.removeListener(_s, _existing.indexResp)
 
             if (_existing.sidx) {
                 return yes(_existing.sidx)
             }
             _existing.indexResp = (data) => {
-                if (typeof data !== 'Error' && data) {
-                    if (data[0]) {
-                        _existing.sidx = data[0]
+                this.socket.removeListener(_s, _existing.indexResp)
+                console.log(data);
+                if (!data.error && data) {
+                    if (data) {
+                        _existing.sidx = data
                         yes(_existing.sidx)
                     } else {
                         _existing.sidx = data
@@ -64,6 +75,17 @@ export default class Socket {
     getVideoRange(options) {
         return new Q((yes, no) => {
             let _buffer
+
+            /*
+            Get from cache
+            */
+            if(options.isIndexRange){
+                let _indexBuffer = Cache.getIndexBuffer(options.uuid)
+                if(_indexBuffer){
+                    yes(_indexBuffer)
+                    return 
+                }
+            }
 
             let _existing = this._getCache(options)
             let _s = `rad:video:range:${options.uuid}:resp`
@@ -87,6 +109,32 @@ export default class Socket {
             this.socket.on(_s, _existing.rangeResp)
             this.socket.on(_e, _existing.rangeEnd)
             this.socket.emit('rad:video:range', options)
+        })
+    }
+
+    saveIndexRangeRedis(obj){
+        console.log(obj);
+        //this.socket.emit('rad:redis:set:indexRange', obj)
+    }
+
+    playlistItems(options) {
+        return new Q((yes, no) => {
+            let params = _.assign({}, {
+                part: 'snippet',
+                videoDuration: 'any',
+                maxResults: 50,
+                type: 'video',
+                safeSearch: 'none'
+            }, YOUTUBE_DEFAULTS, options)
+
+            let _s = `rad:youtube:playlist:items:resp`
+            let _existing = this._getCache(options)
+            this.socket.removeListener(_s, _existing.playlistItemsResponse)
+            _existing.playlistItemsResponse = (data) => {
+                yes(data)
+            }
+            this.socket.on(_s, _existing.playlistItemsResponse)
+            this.socket.emit('rad:youtube:playlist:items', options)
         })
     }
 

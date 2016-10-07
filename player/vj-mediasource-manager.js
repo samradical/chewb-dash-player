@@ -18,6 +18,7 @@ import VjUtils from './vj-utils';
 class VjManager {
 
   constructor(Controller = {}, id="") {
+    console.log(Controller);
     this.options = Controller.toJson()
     this.mediaSourcesConfigs = this.options.mediaSources;
 
@@ -27,31 +28,14 @@ class VjManager {
     this.parent = this.options.el || document.body;
     this.boundUpdate = this._update.bind(this);
 
+    this._emitter = new Emitter()
 
-    Emitter.on('mediasource:ready', (mediasource) => {
-      // this._contoller.getVo(mediasource.options)
-      // .then(vo=>{
-      //     mediasource.addVo(vo)
-      // })
-    })
-
-    Emitter.on('controller:addVo', (mediasource) => {
-      // this._contoller.getVo(mediasource.options)
-      // .then(vo=>{
-      //     mediasource.addVo(vo)
-      // })
-    })
-
-    Emitter.on('mediasource:ending', (mediasource) => {
-
-    })
-
-    Emitter.on('mediasource:videostarting', (mediasource) => {
+    this._emitter.on('mediasource:videostarting', (mediasource) => {
       for (let i = 0; i < this._videoCanvasesLength; i++) {
         this.videoCanvases[i].onResize(window.innerWidth, window.innerHeight);
       }
     })
-
+    console.log(this.mediaSourcesConfigs);
     _.each(this.mediaSourcesConfigs, (mediaPlayersOptions) => {
       let _o = {
         readySignal: new Signals(),
@@ -67,6 +51,7 @@ class VjManager {
       _.forIn(_o, (val, key) => {
         mediaPlayersOptions[key] = val
       })
+      mediaPlayersOptions.emitter = this._emitter
       Object.freeze(mediaPlayersOptions)
       this._createController(mediaPlayersOptions)
     })
@@ -82,17 +67,17 @@ class VjManager {
     this.playerGroups.push(_group)
     this.playerGroupsLength = this.playerGroups.length
 
-    let _controller,
-      _controllerOptions = _.assign({}, options.controller, options)
-    if (_controllerOptions.playlists.length) {
-      _controller = new ControllerYoutubeVideo(_controllerOptions)
+    let _controller
+
+    if (options.playlists.length) {
+      _controller = new ControllerYoutubeVideo(options)
     } else {
-      _controller = new ControllerVideo(_controllerOptions)
+      _controller = new ControllerVideo(options)
     }
 
     if (options.video) {
       _controller.videoSource = this._createMediaSource(
-        _controllerOptions,
+        options,
         'video'
       )
 
@@ -109,7 +94,7 @@ class VjManager {
 
     if (options.audio) {
       _controller.audioSource = this._createMediaSource(
-        _controllerOptions,
+        options,
         'audio'
       )
       _controller.mediaSources.push(_controller.audioSource)

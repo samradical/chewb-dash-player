@@ -1,21 +1,22 @@
-import VideoBase from './vj-video-ext-base'
+import ExtensionBase from './vj-video-ext-base'
 
-import {
-  Emitter,
-} from '../../../utils'
-
-export default class VideoLoop extends VideoBase {
-  constructor(mediaSource, options) {
-    super(mediaSource, options)
+export default class ExtensionLoop extends ExtensionBase {
+  constructor(controller, options) {
+    super(controller, options)
+    let {emitter} = options
     this._startBound = this._start.bind(this)
     this._loopBound = this._loop.bind(this)
-    this._timeUpdateBound = this._timeUpdate.bind(this)
-    this._mediaSouce = mediaSource
+    this._onTimeupdateSignalBound = this._onTimeupdateSignal.bind(this)
+    this._onEndedSignalBound = this._onEndedSignal.bind(this)
 
-    this._mediaSouce.timeUpdateSignal.add(this._timeUpdateBound)
-    Emitter.on(`${options.id}:controller:ext:loop`, this._loopBound)
+    emitter.on(`${options.id}:controller:ext:loop`, this._loopBound)
 
     this._isSettingStartTime = true
+  }
+
+  addMediaSource(ms) {
+    ms.endedSignal.add(this._onEndedSignalBound)
+    ms.timeUpdateSignal.add(this._onTimeupdateSignalBound)
   }
 
   set startTime(v) {
@@ -42,31 +43,36 @@ export default class VideoLoop extends VideoBase {
     return this._currentTime || 0
   }
 
-  _loop(){
-    if(this._isSettingStartTime){
+  _loop() {
+    if (this._isSettingStartTime) {
       this.endTime = null
       this.startTime = this.currentTime
-    }else{
+    } else {
       this.endTime = this.currentTime
       this._mediaSouce.currentTime = this.startTime
     }
     this._isSettingStartTime = !this._isSettingStartTime
   }
 
-  _start(){
+  _start() {
 
   }
 
-  _timeUpdate(currentTime){
-    this._currentTime = currentTime
-    if(this.endTime){
-      if(this._currentTime > this._endTime){
+  _onTimeupdateSignal(mediaSource) {
+/*    this._currentTime = currentTime
+    if (this.endTime) {
+      if (this._currentTime > this._endTime) {
         this._mediaSouce.currentTime = this.startTime
       }
-    }
+    }*/
   }
 
-  destroy(){
+  _onEndedSignal(mediaSource) {
+    let {currentTime, totalDuration, duration} = mediaSource
+    //mediaSource.currentTime = mediaSource.currentVo.startTime
+  }
+
+  destroy() {
     super.destroy()
   }
 }

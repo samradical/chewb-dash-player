@@ -1,8 +1,3 @@
-/*
-"PLqi-HJej8buf-iyECUqIEiMfIuKvmVheH",
-      "PLqbllT_YPpdPOqPKZcHhiPGo-ScFGM3Xs",
-      "PLqi-HJej8budAOCwDJRW4mFF258ZdLG9m"
-*/
 import _ from 'lodash'
 
 let _cdefaults = {
@@ -10,7 +5,7 @@ let _cdefaults = {
   fps: 30,
   autoUpdate: true,
   serverBase: "http://0.0.0.0:8080/",
-  mediaSources: []
+  mediaSources: null
 }
 
 let _msdefaults = {
@@ -39,18 +34,20 @@ let _msdefaults = {
 }
 
 class Controller {
-  constructor(options = _cdefaults) {
+  constructor(opt = _cdefaults) {
+    let options = _.assign({}, _cdefaults, opt)
     this.el = options.el
     this.fps = options.fps
     this.autoUpdate = options.autoUpdate
     this.serverBase = options.serverBase
-    this.mediaSources = options.mediaSources
+    this.mediaSources = []
   }
 
-  newSource(options) {
-    options = options || this.getSourceOptions()
-    this.mediaSources.push(options)
-    return options
+  addSource(options = {}) {
+    this.mediaSources.push(_.assign({},
+      this.getSourceOptions(),
+      options))
+    return this.mediaSources[this.mediaSources.length - 1]
   }
 
   getSourceOptions() {

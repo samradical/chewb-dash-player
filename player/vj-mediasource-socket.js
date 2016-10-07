@@ -1,6 +1,5 @@
 import {
   Constants,
-  Emitter,
 } from '../utils'
 
 import Loader from './vj-mediasource-loader';
@@ -72,9 +71,13 @@ class VjMediaSource {
     this.onBufferUpdateEndBound = this.onBufferUpdateEnd.bind(this);
     //this.onInitAddedBound = this._onInitAdded.bind(this);
     this.onTimeUpdateBound = this._onTimeUpdate.bind(this);
-    this.onBufferSourceRemovedBound = this._onBufferSourceRemoved.bind(this);
     this.onSourceOpenBound = this._onSourceOpen.bind(this);
     this.onSourceErrorBound = this._onSourceError.bind(this);
+
+    this.onBufferSourceRemovedBound = this._onBufferSourceRemoved.bind(this);
+    this.onBufferErrorBound = this._onBufferError.bind(this);
+    this.onBufferSourceEndedBound = this._onBufferSourceEnded.bind(this);
+    this.onBufferSourceClosedBound = this._onBufferSourceClosed.bind(this);
 
     this.videoElement.addEventListener("timeupdate", this.onTimeUpdateBound, false);
     this.videoElement.addEventListener("ended", this._onVideoEnded, false);
@@ -90,7 +93,7 @@ class VjMediaSource {
       }
       this._waiting = false
       this.videoPlayingSignal.dispatch(this)
-    });
+    }, false);
 
     this.videoElement.addEventListener("waiting", () => {
       if (VERBOSE) {
@@ -98,14 +101,14 @@ class VjMediaSource {
       }
       this._waiting = true
       this.videoWaitingSignal.dispatch(this)
-    });
+    }, false);
     this.videoElement.addEventListener("pause", () => {
       if (VERBOSE) {
         console.log("Pause");
       }
       this._waiting = true
       this.videoPausedSignal.dispatch(this)
-    });
+    }, false);
 
     this.videoElement.addEventListener("loadstart", () => {
       if (VERBOSE) {
@@ -113,49 +116,64 @@ class VjMediaSource {
       }
       this._waiting = false
         //this.videoPlayingSignal.dispatch()
-    });
+    }, false);
 
-    this._newMediaSource();
-    this.waitingLine = [];
+    this.videoElement.addEventListener("suspend", () => {
+      if (VERBOSE) {
+        console.log("suspend");
+      }
+      this._waiting = true
+    }, false);
+
+    this._newMediaSource().then(() => {
+      this.readySignal.dispatch(this);
+      this.options.emitter.emit('mediasource:ready', this)
+    });
   }
 
   _newMediaSource() {
-    this.starting = true;
-    this.mediaSource = new MediaSource();
-    let url = URL.createObjectURL(this.mediaSource);
-    this.videoElement.src = url;
-    this.mediaSource.addEventListener('error', this.onSourceErrorBound, false);
-    this.mediaSource.addEventListener('sourceopen', this.onSourceOpenBound, false);
+    return new Q((resolve, reject) => {
+      let _self = this
+      this.starting = true;
+      this.mediaSource = new MediaSource();
+      let url = URL.createObjectURL(this.mediaSource);
+      this.videoElement.src = url;
+      this.mediaSource.addEventListener('error', this.onSourceErrorBound, false);
+      this.mediaSource.addEventListener('sourceopen', function() {
+        _self.mediaSource.removeEventListener('sourceopen', arguments[0].callee);
+        _self.starting = false;
+        resolve()
+      }, false);
+    })
   }
 
   _onSourceError(e) {}
 
   _onSourceOpen(e) {
-    this.starting = false;
-    this.readySignal.dispatch(this);
-    Emitter.emit('mediasource:ready', this)
-    if (this.waitingLine.length) {
-      this.addVo(this.waitingLine.pop());
-    }
+
   }
 
   newBufferSouce(codecs) {
     return new Q((resolve, reject) => {
       this._removeSourceBuffer()
         .then(() => {
-          setTimeout(() => {
-            console.log(this.mediaSource.sourceBuffers);
-            this.mediaSource.removeEventListener('sourceopen', this.onSourceOpenBound);
-            this.currentCodec = codecs || this.currentCodec;
-            this.mediaSource.addEventListener('addsourcebuffer', () => {
-              console.log("Mediasource");
-            })
-            this.sourceBuffer = this.mediaSource.addSourceBuffer('video/mp4; codecs="' + codecs + '"');
-            this.sourceBuffer.addEventListener('updatestart', this.onBufferUpdateStartBound);
-            this.sourceBuffer.addEventListener('updateend', this.onBufferUpdateEndBound);
-
-            resolve()
-          }, 2000)
+          console.log(this.mediaSource.sourceBuffers);
+          this.mediaSource.removeEventListener('sourceopen', this.onSourceOpenBound);
+          this.currentCodec = codecs || this.currentCodec;
+          /*this.mediaSource.addEventListener('addsourcebuffer', () => {
+            console.log("Mediasource");
+          })*/
+          try {
+            this.sourceBuffer = this.mediaSource.addSourceBuffer('video/mp4; codecs="' + this.currentCodec + '"');
+            this.sourceBuffer.addEventListener('updatestart', this.onBufferUpdateStartBound, false)
+            this.sourceBuffer.addEventListener('updateend', this.onBufferUpdateEndBound, false)
+            this.sourceBuffer.addEventListener('error', this.onBufferErrorBound, false)
+            this.sourceBuffer.addEventListener('sourceclose', this.onBufferSourceCloseBound, false)
+            this.sourceBuffer.addEventListener('sourceended', this.onBufferSourceEndedBound, false)
+          } catch (e) {
+            console.log(e);
+          }
+          resolve()
         })
     })
   }
@@ -183,7 +201,7 @@ class VjMediaSource {
     if (ct > this.currentVo.startTime && !this.newVoStarted) {
       this.newVoStarted = true;
       this.videoStartedSignal.dispatch(this);
-      Emitter.emit('mediasource:videostarting', this)
+      this.options.emitter.emit('mediasource:videostarting', this)
     }
     //console.log(ct, this.totalDuration);
     if (ct >= (this.totalDuration - this.options.timeBeforeRequestingNewClip)) {
@@ -193,14 +211,15 @@ class VjMediaSource {
           console.log(this.currentVo.videoId, "Requesting new vo");
         }
         this.endingSignal.dispatch(this);
-        Emitter.emit('mediasource:ending', this)
+        this.options.emitter.emit('mediasource:ending', this)
       }
     }
     if (ct >= this.totalDuration - 0.1) {
       if (!this.ended) {
         this.ended = true;
+        console.log("ENDED");
         this.endedSignal.dispatch(this);
-        Emitter.emit('mediasource:ended', this)
+        this.options.emitter.emit('mediasource:ended', this)
       }
     }
     this.timeUpdateSignal.dispatch(this)
@@ -226,11 +245,11 @@ class VjMediaSource {
     return this._waiting
   }
 
-  get type(){
+  get type() {
     return this._type
   }
 
-  get currentTime(){
+  get currentTime() {
     return this.videoElement.currentTime
   }
 
@@ -270,7 +289,7 @@ class VjMediaSource {
   }
 
   addVo(currentVo) {
-    return new Q((resolve, reject) => {
+    this._activePromiseChain = new Q((resolve, reject) => {
       if (this._addingSegment) {
         return reject(new Error(`Vo being added`))
       }
@@ -283,33 +302,34 @@ class VjMediaSource {
       this._currentVo = currentVo
 
       if (!this.currentCodec) {
-        Emitter.emit('audio:warn', `The codecs arnt equal`);
+        this.options.emitter.emit('audio:warn', `The codecs arnt equal`);
         this.newBufferSouce(currentVo.codecs).then(() => {
           resolve(this._readyToAdd(currentVo))
         });
       } else {
         if (this.sourceBuffer) {
           if (VERBOSE) {
-            Emitter.emit('audio:log', `Sourcebuffer updating: ${this.sourceBuffer.updating}`);
-            Emitter.emit('audio:log', `Sourcebuffer mode: ${this.sourceBuffer.mode}`);
+            this.options.emitter.emit('audio:log', `Sourcebuffer updating: ${this.sourceBuffer.updating}`);
+            this.options.emitter.emit('audio:log', `Sourcebuffer mode: ${this.sourceBuffer.mode}`);
           }
           resolve(this._readyToAdd(currentVo));
         } else {
-          Emitter.emit('audio:warn', `The codecs arnt equal`);
+          this.options.emitter.emit('audio:warn', `The codecs arnt equal`);
           //return this._readyToAdd(currentVo);
         }
       }
     })
+    return this._activePromiseChain
   }
 
   _readyToAdd(currentVo) {
     this.setCurrentVideoId(currentVo.id);
-    this.mediaSource.duration = this.totalDuration;
-    if(VERBOSE){
+    if (VERBOSE) {
       console.log("-------------------------------------------------");
-      console.log(this._type, this.totalDuration ,currentVo.duration);
+      console.log(this._type, this.totalDuration, currentVo.duration);
       console.log("-------------------------------------------------");
     }
+    this.mediaSource.duration = this.totalDuration;
     return this._addSegment(currentVo);
   }
 
@@ -330,11 +350,35 @@ class VjMediaSource {
   onBufferUpdateEnd() {
     this.updatedStarted = false;
     if (VERBOSE) {
-      Emitter.emit('audio:log', `Sourcebuffer updated. Is updating: ${this.sourceBuffer.updating}`);
+      this.options.emitter.emit('audio:log', `Sourcebuffer updated. Is updating: ${this.sourceBuffer.updating}`);
     }
   }
 
+  _onBufferSourceEnded(e) {
+    console.log('_onBufferSourceEnded');
+  }
+
+  _onBufferError(e) {
+    console.log('_onBufferErrorBound');
+    console.log(e);
+    this.resetMediasource()
+      .then(() => {
+        this._activePromiseChain._reject()
+        //Q.resolve()
+        //this._activePromiseChain.resolve(this)
+        //console.log(this._activePromiseChain);
+        //return this._readyToAdd(this.currentVo)
+      }).finally();
+  }
+
+  _onBufferSourceClosed(e) {
+    console.log('_onBufferSourceClosed');
+  }
+
   _addSegment(currentVo) {
+    if (!this.sourceBuffer) {
+      return Q.reject('No sourcebuffer')
+    }
     this.newVoStarted = false;
     this.currentVo = currentVo;
     this.currentVo.startTime = this.totalDuration;
@@ -345,7 +389,6 @@ class VjMediaSource {
     if (this.sourceBuffer.buffered.length > 0) {
       off = this.sourceBuffer.buffered.end(this.sourceBuffer.buffered.length - 1);
     }
-    console.log(currentVo);
     return this._trySettingOffset(this.currentVo, off)
       .then(() => {
         return this._addInitReponse(this.currentVo, this.currentVo.indexBuffer)
@@ -357,6 +400,9 @@ class VjMediaSource {
                   .then(() => {
                     this._addingSegment = false
                     return this
+                  })
+                  .catch(err=>{
+                    console.log(err);
                   })
               })
           })
@@ -370,7 +416,7 @@ class VjMediaSource {
       function _poll() {
         if (!_self.sourceBuffer.updating) {
           clearInterval(_i)
-          Emitter.emit('audio:log', `Sourcebuffer mode: ${_self.sourceBuffer.mode}`);
+          _self.options.emitter.emit('audio:log', `Sourcebuffer mode: ${_self.sourceBuffer.mode}`);
           try {
             _self.sourceBuffer.timestampOffset = off || 0;
             if (VERBOSE) {
@@ -399,11 +445,15 @@ class VjMediaSource {
       let _self = this
 
       function _onInitAdded() {
-        _self.sourceBuffer.removeEventListener('updateend', _onInitAdded);
+        try {
+          _self.sourceBuffer.removeEventListener('updateend', _onInitAdded);
+          resolve()
+        } catch (e) {
+          reject(e)
+        }
         if (VERBOSE) {
           console.log("Init response added: ", vo.videoId || vo.id);
         }
-        resolve()
       }
 
       function _tryAppend() {
@@ -437,9 +487,17 @@ class VjMediaSource {
       }
 
       function _onResponseAdded() {
-        _self.sourceBuffer.removeEventListener('updateend', _onResponseAdded);
-        _self.onBufferUpdateEndBound()
-        resolve()
+        try {
+          if(_self.sourceBuffer){
+            _self.sourceBuffer.removeEventListener('updateend', _onResponseAdded);
+            _self.onBufferUpdateEndBound()
+            resolve()
+          }else{
+            reject(new Error(`no source buffer on _onResponseAdded ${vo.videoId || vo.id}`))
+          }
+        } catch (e) {
+          reject(e)
+        }
       }
 
 
@@ -488,6 +546,9 @@ class VjMediaSource {
       if (this.sourceBuffer) {
         this.sourceBuffer.removeEventListener('updateend', this.onBufferUpdateEndBound);
         this.sourceBuffer.removeEventListener('updatestart', this.onBufferUpdateStartBound);
+        this.sourceBuffer.removeEventListener('error', this.onBufferErrorBound)
+        this.sourceBuffer.removeEventListener('sourceclose', this.onBufferSourceCloseBound)
+        this.sourceBuffer.removeEventListener('sourceended', this.onBufferSourceEndedBound)
         try {
           this.sourceBuffer.remove(0, this.mediaSource.duration);
         } catch (e) {
@@ -524,6 +585,13 @@ class VjMediaSource {
         this.totalDuration = this.segDuration = this.playOffset = 0;
         //this.waitingLine.push(this.currentVo)
         return this._newMediaSource()
+          .then(() => {
+            return this.newBufferSouce()
+            .then(()=>{
+
+              console.log('Success!!!!!!');
+            })
+          })
       });
   }
 }

@@ -43,5 +43,5 @@ class EventEmitter {
       return false;
   }
 }
-const emitter = new EventEmitter();
-export default emitter;
+
+export default EventEmitter;

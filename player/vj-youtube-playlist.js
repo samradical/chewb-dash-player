@@ -9,6 +9,7 @@ import {
 
 import YoutubeService from './service/youtubeService';
 import ServerService from './service/serverService';
+import SocketService from './service/socketService';
 import PlaylistUtils from './vj-youtube-playlist-utils';
 import ControlPerameters from './vj-control-perameters';
 import VjUtils from './vj-utils';
@@ -66,7 +67,7 @@ class MediaPlaylist {
 		console.log(this.options.playlists);
 		if (this.options.playlists) {
 			return Q.map(this.options.playlists, (id) => {
-				return ServerService.playlistItems({
+				return SocketService.playlistItems({
 						playlistId: id
 					})
 					.then(results => {
