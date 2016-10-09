@@ -3,6 +3,8 @@ import _ from 'lodash';
 
 
 import ControllerBase from './vj-controller-base';
+import VideoVoUtils from './vj-controller-youtube-videovo-utils';
+import YoutubeVideoSocket from './vj-controller-youtube-video-socket';
 
 import {
   Utils,
@@ -12,13 +14,6 @@ import {
 
 const { ERROR_TYPES } = Constants;
 
-let VIDEO_VO = {
-  refIndex: 0,
-  currentRefDuration: 0,
-  watchedRefs: [],
-  timelineTotal: 0,
-  refLength: undefined
-}
 let TIMELINE_VO = {}
 
 const VERBOSE = true
@@ -32,10 +27,12 @@ class VideoController extends ControllerBase {
       //this.mediaSource = mediaSource
     this._options = options
     this._playlists = this._options.playlists
-    this._sidxQualityOptions = this._getSidxQualityOptions(this._options.quality)
 
     this.youtubeItems = [];
     this.youtubeItemIds = [];
+
+    this._videoVoUtils = new VideoVoUtils(this)
+    this._videoSocket = new YoutubeVideoSocket(this)
 
     this._requestedIds = []
 
@@ -58,92 +55,138 @@ class VideoController extends ControllerBase {
   }
 
   _getMediaSourceVo(mediaSource) {
-    //maybe a hack?
-    this._tempMediaSource = mediaSource
 
-    let _uuid = this._getUUID(mediaSource, this.currentVideoId)
+    let _uuid = this._getUUID(mediaSource.type, this.currentVideoId)
+    let _videoVo = this._videoVoUtils.getCurrentVideoVo(_uuid)
     console.log('_getMediaSourceVo');
-    console.log(_uuid);
-    return this._getSidx(
-        this.currentVideoId,
-        this._getSidxOptions(
+    console.log(_videoVo.preloadPromise);
+
+    if (_videoVo.preloadPromise) {
+      if (!_videoVo.preloadPromise.isFulfilled()) {
+        return _videoVo.preloadPromise
+          .then(mediaSourceVo => {
+            delete _videoVo.preloadPromise
+            return this._doRangeRequestAndAdd(mediaSource, mediaSourceVo, _videoVo)
+          })
+      }
+      let manifest = Cache.getSidxManifest(_videoVo.uuid)
+      let _mediaSourceVo = this._createMediaSourceVo(manifest, _videoVo, this._options)
+      return this._doRangeRequestAndAdd(mediaSource, _mediaSourceVo, _videoVo)
+    } else {
+
+      return this._getSidxManifest(
           mediaSource,
           this.currentVideoId,
-          this._sidxQualityOptions
-        )
-      )
-      .then(data => {
-        let _videoVo = this._getCurrentVideoVo(_uuid)
-        let _references = data.sidx.references
-        let _ref = _references[_videoVo.refIndex]
-        _videoVo.refLength = _references.length
+          _uuid
+        ).then(manifest => {
+          this._onManifestReceived(mediaSource, _videoVo, manifest)
 
-        //we override this in extensions
-        this._chooseVoRefIndex(_videoVo)
+          //preload
+          if (this._videoVoUtils.isAtLastRef(_videoVo)) {
+            this._videoSocket.preload(mediaSource, this._getNextVideoId())
+          }
+          //we make a new object
+          let _mediaSourceVo = this._createMediaSourceVo(manifest, _videoVo, this._options)
 
-        let _vo = VjUtils.combineRefsIndexs(
-          data,
-          _videoVo,
-          this._options);
-
-        _vo.uuid = _uuid
-
-        return this._SocketService
-          .getVideoRange({
-            uuid: _uuid,
-            url: _vo.url,
-            range: _vo.indexRange,
-            youtubeDl: _vo.youtubeDl,
-            isIndexRange:true
+          return this._getIndexBuffer(
+            _videoVo.uuid,
+            _mediaSourceVo.url,
+            _mediaSourceVo.indexRange
+          ).then(buffer => {
+            _mediaSourceVo.indexBuffer = buffer
+            if (VERBOSE) console.log("Got index buffer");
+            return this._doRangeRequestAndAdd(mediaSource, _mediaSourceVo, _videoVo)
           })
-          .then(buffer => {
-            _vo.indexBuffer = buffer
-            Cache.copySetIndexBuffer(_vo.uuid, _vo.indexBuffer)
-            if(VERBOSE) console.log("Got index buffer");
-            return this._SocketService
-              .getVideoRange({
-                uuid: _uuid,
-                url: _vo.url,
-                range: _vo.byteRange,
-                youtubeDl: _vo.youtubeDl
-              })
-              .then(buffer => {
-                _vo.videoBuffer = buffer
-            	if(VERBOSE) console.log("Got video buffer");
+        })
+        .catch(err => {
+          //do something before
+          console.warn(err);
+          return this.addVo().finally()
+        })
+    }
+  }
 
-                /*var buf = new ArrayBuffer(_vo.indexBuffer.length)
-                var bufView = new Uint8Array(buf);
-                bufView.set(_vo.indexBuffer)
+  _getSidxManifest(mediaSource, videoId, uuid) {
+    return this._videoSocket.getManifest(mediaSource, videoId, uuid)
+  }
 
-                let i = Math.floor(Math.random() * 4)
-                this._SocketService.addVideo({
-                	indexBuffer: buf,
-                	rangeBuffer: _vo.videoBuffer,
-                	saveName: _vo.videoId,
-                	duration:_vo.duration,
-                	saveGroup: (i === 0)
-                })*/
+  _getIndexBuffer(uuid, url, range, options) {
+    return this._videoSocket.getIndexBuffer(uuid, url, range, options)
+  }
 
-                //override this method
-                this._onIndexAndBufferSuccess(_vo)
+  _getRangeBuffer(uuid, url, range, options) {
+    return this._videoSocket.getRangeBuffer(uuid, url, range, options)
+  }
 
-                /*this._saveIndexRange(_vo)*/
-                /*this._addToRequested(_vo)*/
+  _doRangeRequest(mediaSource, mediaSourceVo, videoVo) {
+    return this._getRangeBuffer(
+      videoVo.uuid,
+      mediaSourceVo.url,
+      mediaSourceVo.byteRange
+    ).then(buffer => {
+      mediaSourceVo.videoBuffer = buffer
+      if (VERBOSE) console.log("Got video buffer");
 
-                return mediaSource.addVo(_vo)
-                  .then(mediaSource => {
-                    this.voAddedSignal.dispatch(mediaSource)
-                    console.log("Added");
-                    return mediaSource
-                  })
-                  .catch(err => {
-                    console.log(err);
-                  })
-                  //return _vo
-              })
-          })
+      /*var buf = new ArrayBuffer(mediaSourceVo.indexBuffer.length)
+      var bufView = new Uint8Array(buf);
+      bufView.set(mediaSourceVo.indexBuffer)
+
+      let i = Math.floor(Math.random() * 4)
+      this._SocketService.addVideo({
+        indexBuffer: buf,
+        rangeBuffer: mediaSourceVo.videoBuffer,
+        saveName: mediaSourceVo.videoId,
+        duration:mediaSourceVo.duration,
+        saveGroup: (i === 0)
+      })*/
+
+      //override this method
+      this._onIndexAndBufferSuccess(mediaSourceVo)
+
+      //this is important
+      this._videoVoUtils.addRefToWatchedVideoVo(videoVo)
+
+      return mediaSourceVo
+
+      /*this._saveIndexRange(mediaSourceVo)*/
+      /*this._addToRequested(mediaSourceVo)*/
+    })
+  }
+
+  _addVo(mediaSource, mediaSourceVo) {
+    return mediaSource.addVo(mediaSourceVo)
+      .then(mediaSource => {
+        this.voAddedSignal.dispatch(mediaSource)
+        console.log("Added");
+        mediaSourceVo = null
+        return mediaSource
       })
-      .catch(err => {})
+      .catch(err => {
+        console.log(err);
+      })
+  }
+
+  _doRangeRequestAndAdd(mediaSource, mediaSourceVo, videoVo) {
+    return this._doRangeRequest(mediaSource, mediaSourceVo, videoVo)
+      .then(mediaSourceVo => {
+        return this._addVo(mediaSource, mediaSourceVo)
+      })
+  }
+
+  _onManifestReceived(mediaSource, videoVo, manifest) {
+    let _references = manifest.sidx.references
+    this._videoVoUtils.setReferenceLength(videoVo, _references.length)
+
+    //we override this in extensions
+    this._chooseVoRefIndex(videoVo, mediaSource)
+  }
+
+  _createMediaSourceVo(manifest, videoVo, options) {
+    return this._videoVoUtils.getMediaSourceVo(
+      manifest,
+      videoVo,
+      options
+    )
   }
 
   /*
@@ -151,6 +194,9 @@ class VideoController extends ControllerBase {
   */
   _onIndexAndBufferSuccess(vo) {}
 
+  //!!!!!!!!!!!!!!!!!!!!
+  //UNUSED
+  //!!!!!!!!!!!!!!!!!!!!
   /*
   Know which videos we've requested
   */
@@ -161,7 +207,8 @@ class VideoController extends ControllerBase {
   }
 
   /*
-  Save the indexBuffer on redis only once
+  Save the indexBuffer on redis only once,
+  UNUSED
   */
   _saveIndexRange(vo) {
     if (this._requestedIds.indexOf(vo.videoId) < 0) {
@@ -172,34 +219,36 @@ class VideoController extends ControllerBase {
     }
   }
 
+  //****************
+  //OVERRIDES
+  //****************
+
   /*
   By default it will play through a video and go to the next
   */
-  _chooseVoRefIndex(videoVo) {
-    //passed the last ref
-    if ((videoVo.refIndex + 1) > (videoVo.refLength - 1)) {
-      this._chooseCurrentVideoIndex()
-      let _uuid = this._getUUID(this._tempMediaSource, this.currentVideoId)
-      videoVo = this._getCurrentVideoVo(_uuid)
-    } else {
-      videoVo.refIndex = (videoVo.refIndex + 1)
-    }
-    videoVo.watchedRefs.push(videoVo.refIndex)
+  _chooseVoRefIndex(videoVo, mediaSource) {
+    //passed the last ref, so choose next video
+    //basic 
+    this._videoVoUtils.incrementRefIndex(videoVo, 1, (videoVo) => {
+      this._chooseCurrentVideoIndex(videoVo)
+    })
   }
 
   /*Override this too*/
-  _chooseCurrentVideoIndex() {
+  _chooseCurrentVideoIndex(videoVo) {
+    //increase the youtube
     this._setNextVideoId()
+      //so it starts the next
+    throw new Error('Ran out of videos')
   }
 
-  /*For the API*/
-  _getSidxOptions(mediaSource, videoId, options) {
-    return _.assign({}, {
-      videoOnly: (mediaSource.type === 'video'),
-      audioOnly: (mediaSource.type === 'audio'),
-      uuid: this._getUUID(mediaSource, videoId)
-    }, options)
+  _onVideoPlayingSignal(mediaSource) {
+
   }
+
+  //**************
+  //fetching data
+  //**************
 
   /*
   Something went wrong when trying to add the vo
@@ -248,33 +297,13 @@ class VideoController extends ControllerBase {
   /*
   The unique identifier to look up chached index range
   */
-  _getUUID(mediaSource, videoId) {
-    let _videoOnly = mediaSource.type === 'video'
-    let _audioOnly = mediaSource.type === 'audio'
-    return `${mediaSource.type}:${videoId}:${this.sidxResolution}`
+  _getUUID(type, videoId) {
+    return this._videoSocket.getUUID(type, videoId)
   }
 
   /*
-  Get an sidx from vId
+  Get all the video Ids from playlists
   */
-  _getSidx(vId, options = {}) {
-      return this._SocketService
-        .getSidx(_.assign({}, options, { id: vId }))
-        .then(sidx => {
-          return sidx
-        })
-        .catch(err=>{
-          let {videoId} = err
-          console.log(err);
-          console.log(this.youtubeItemIds);
-          this._removeVideoIdFromQueue(videoId)
-          console.log(this.youtubeItemIds);
-          return this.addVo().finally()
-        })
-    }
-    /*
-    Get all the video Ids from playlists
-    */
   _getPlaylistVideoIds() {
     return new Q((resolve, reject) => {
       if (this.youtubeItemIds.length) {
@@ -283,7 +312,7 @@ class VideoController extends ControllerBase {
         return Q.map(this._playlists, (id) => {
           return this._SocketService.playlistItems({
               playlistId: id,
-              force:this._options.forcePlaylistUpdate
+              force: this._options.forcePlaylistUpdate
             })
             .then(results => {
               this._updateYoutubeResults(results);
@@ -303,16 +332,6 @@ class VideoController extends ControllerBase {
     })
   }
 
-  /*
-  Store the info regarding an ID
-  */
-  _getPlayedVideoVo(uuid) {
-    if (!this._playedVideoVos[uuid]) {
-      this._playedVideoVos[uuid] = _.clone(VIDEO_VO)
-    }
-    return this._playedVideoVos[uuid]
-  }
-
   _setRandomVideoIndex() {
     this.currentVideoIndex = Utils.getRandomNumberRange(this.youtubeItemIds.length - 1)
     return this.currentVideoIndex
@@ -321,6 +340,10 @@ class VideoController extends ControllerBase {
   /*
   DECIDE TO GO TO NEXT VIDEO OR NOT
   */
+
+  //!!!!!!!!!!!!!!
+  //UNUSED
+  //!!!!!!!!!!!!!!
   _checkVideoPlaybackPostion(mediaSource) {
     let _uuid = this._getUUID(mediaSource, this.currentVideoId)
     let _videoVo = this._getCurrentVideoVo(_uuid)
@@ -336,11 +359,11 @@ class VideoController extends ControllerBase {
     console.log(videoVo.timelineTotal);
   }
 
-  _adjustAfterNewVideo(videoVo, oldId, newId) {
+  /*_adjustAfterNewVideo(videoVo, oldId, newId) {
     this.mediaSources.forEach(ms => {
       ms.currentTime = ms.totalDuration - videoVo.currentRefDuration
     })
-  }
+  }*/
 
   _setNextVideoId() {
     let _c = this.currentVideoIndex
@@ -351,9 +374,15 @@ class VideoController extends ControllerBase {
     this.currentVideoIndex = _c
   }
 
-  _getCurrentVideoVo(uuid) {
-    return this._getPlayedVideoVo(uuid)
+  _getNextVideoId() {
+    let _c = this.currentVideoIndex
+    _c++
+    if (_c > this.youtubeItemIds.length - 1) {
+      _c = 0
+    }
+    return this.youtubeItemIds[_c]
   }
+
 
   _setPreviousVideoId() {
     let _c = this.currentVideoIndex
@@ -388,17 +417,13 @@ class VideoController extends ControllerBase {
     return this._options
   }
 
-  get sidxResolution() {
-    return this._sidxQualityOptions.resolution
-  }
-
   _getRandomVideoId() {
     return this.youtubeItemIds[Math.floor(Math.random() * this.youtubeItemIds.length - 1)]
   }
 
-  _removeVideoIdFromQueue(id){
+  _removeVideoIdFromQueue(id) {
     let _i = this.youtubeItemIds.indexOf(id)
-    if(_i > -1){
+    if (_i > -1) {
       this.youtubeItemIds.splice(_i, 1)
     }
   }
@@ -413,7 +438,7 @@ class VideoController extends ControllerBase {
   /*
   Requires youtubeVideoId
   */
-  unshiftNewVideo(value){
+  unshiftNewVideo(value) {
     console.log(value);
     this.youtubeItemIds.unshift(value)
   }

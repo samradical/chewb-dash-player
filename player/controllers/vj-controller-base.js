@@ -51,9 +51,7 @@ class ControllerBase {
     this._onVideoWaitingSignalBound = this._onVideoWaitingSignal.bind(this)
 
     this._extensions = new Map()
-    this._playedVideoVos = {
-      //videoId...{}
-    }
+    this._playedVideoVos = new Map()
 
     this._ServerService.setServerBase(this._options.serverBase)
 
@@ -126,7 +124,9 @@ class ControllerBase {
       return this._getMediaSourceVo(mediaSource)
     }, { concurrency: 1 })
   }
-
+  //*****************
+  //OVERRIDES
+  //*****************
   /*
   Override this
   */
@@ -152,6 +152,10 @@ class ControllerBase {
   get options() {
     return this._options
   }
+
+  //*******
+  //PLAYER
+  //*******
 
   nextVideo() {
     this._nextVideo()
@@ -204,6 +208,14 @@ class ControllerBase {
     return (this.mediaSources.indexOf(ms) === 0)
   }
 
+  _setPlayedVideoVo(uuid, videoVo){
+    this._playedVideoVos.set(uuid, videoVo)
+  }
+
+  _getPlayedVideoVo(uuid){
+    return this._playedVideoVos.get(uuid)
+  }
+
   //**************
   //SIGNALS
   //**************
@@ -217,9 +229,9 @@ class ControllerBase {
   }
 
   _onEndedSignal(mediaSource) {
-    if (this._isMediaSourceMaster(mediaSource)) {
+    /*if (this._isMediaSourceMaster(mediaSource)) {
       this.addVo().finally()
-    }
+    }*/
   }
 
   /*
@@ -254,17 +266,17 @@ class ControllerBase {
   }
 
   _onVideoPlayingSignal(mediaSource) {
-    let _ms = this._getOtherMediaSource(mediaSource)
+    /*let _ms = this._getOtherMediaSource(mediaSource)
     if (mediaSource !== _ms) {
       _ms.play()
-    }
+    }*/
   }
 
   _onVideoPausedSignal(mediaSource) {
-    let _ms = this._getOtherMediaSource(mediaSource)
+    /*let _ms = this._getOtherMediaSource(mediaSource)
     if (mediaSource !== _ms) {
       _ms.pause()
-    }
+    }*/
   }
 
   _onVideoWaitingSignal(mediaSource) {

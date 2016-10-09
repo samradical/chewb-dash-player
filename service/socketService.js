@@ -64,7 +64,7 @@ export default class Socket {
                     }
                 } else {
                     console.log(data);
-                    no(data)
+                    no(new Error(JSON.stringify(data)))
                 }
             }
             this.socket.on(_s, _existing.indexResp)

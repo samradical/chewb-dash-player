@@ -18,7 +18,6 @@ import VjUtils from './vj-utils';
 class VjManager {
 
   constructor(Controller = {}, id="") {
-    console.log(Controller);
     this.options = Controller.toJson()
     this.mediaSourcesConfigs = this.options.mediaSources;
 
@@ -35,7 +34,6 @@ class VjManager {
         this.videoCanvases[i].onResize(window.innerWidth, window.innerHeight);
       }
     })
-    console.log(this.mediaSourcesConfigs);
     _.each(this.mediaSourcesConfigs, (mediaPlayersOptions) => {
       let _o = {
         readySignal: new Signals(),

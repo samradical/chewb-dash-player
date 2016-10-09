@@ -147,17 +147,10 @@ class VjMediaSource {
     })
   }
 
-  _onSourceError(e) {}
-
-  _onSourceOpen(e) {
-
-  }
-
-  newBufferSouce(codecs) {
+  _newBufferSouce(codecs) {
     return new Q((resolve, reject) => {
       this._removeSourceBuffer()
         .then(() => {
-          console.log(this.mediaSource.sourceBuffers);
           this.mediaSource.removeEventListener('sourceopen', this.onSourceOpenBound);
           this.currentCodec = codecs || this.currentCodec;
           /*this.mediaSource.addEventListener('addsourcebuffer', () => {
@@ -176,6 +169,12 @@ class VjMediaSource {
           resolve()
         })
     })
+  }
+
+  _onSourceError(e) {}
+
+  _onSourceOpen(e) {
+
   }
 
   ////-----------------
@@ -300,12 +299,16 @@ class VjMediaSource {
       }
 
       this._currentVo = currentVo
-
-      if (!this.currentCodec) {
+      if (!this.mediaSource) {
+        return this._newMediaSource()
+          .then(() => {
+            return this._newBufferSouce()
+            .then(()=>{
+              console.log('Success!!!!!!');
+              resolve(this._readyToAdd(currentVo))
+            })
+          })
         this.options.emitter.emit('audio:warn', `The codecs arnt equal`);
-        this.newBufferSouce(currentVo.codecs).then(() => {
-          resolve(this._readyToAdd(currentVo))
-        });
       } else {
         if (this.sourceBuffer) {
           if (VERBOSE) {
@@ -314,8 +317,11 @@ class VjMediaSource {
           }
           resolve(this._readyToAdd(currentVo));
         } else {
+          return this._newBufferSouce(currentVo.codecs)
+            .then(() => {
+            resolve(this._readyToAdd(currentVo))
+          });
           this.options.emitter.emit('audio:warn', `The codecs arnt equal`);
-          //return this._readyToAdd(currentVo);
         }
       }
     })
@@ -461,7 +467,7 @@ class VjMediaSource {
           _self.sourceBuffer.appendBuffer(initResp);
         } catch (e) {
           console.log(vo);
-          //_self.newBufferSouce().then(_tryAppend).finally()
+          //_self._newBufferSouce().then(_tryAppend).finally()
           console.log(e);
           reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId || vo.id}`))
         }
@@ -556,9 +562,6 @@ class VjMediaSource {
         }
         this.mediaSource.removeSourceBuffer(this.mediaSource.sourceBuffers[0]);
         this.sourceBuffer = null
-        if (VERBOSE) {
-          console.log(`_removeSourceBuffer success`);
-        }
         resolve()
       } else {
         resolve()
@@ -581,17 +584,13 @@ class VjMediaSource {
         this.sourceBuffer = null;
         this.requestingNewVo = false;
         this.enterFrameCounter = 0;
+        this._addingSegment = false;
+        this.starting = false;
         this.videoElement.currentTime = 0;
         this.totalDuration = this.segDuration = this.playOffset = 0;
-        //this.waitingLine.push(this.currentVo)
-        return this._newMediaSource()
-          .then(() => {
-            return this.newBufferSouce()
-            .then(()=>{
-
-              console.log('Success!!!!!!');
-            })
-          })
+        if (VERBOSE) {
+          console.warn(`removed media success`);
+        }
       });
   }
 }

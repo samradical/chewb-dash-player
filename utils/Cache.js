@@ -1,6 +1,7 @@
 import _ from 'lodash';
 
 const IndexBufferCache = new Map()
+const ManifestCache = new Map()
 const MAX_CACHE = 100
 
 const API = {
@@ -16,7 +17,15 @@ const API = {
     },
     getIndexBuffer(uuid){
         return IndexBufferCache.get(`${uuid}:indexBuffer`)
+    },
+
+    setSidxManifest(uuid, manifest){
+        ManifestCache.set(`${uuid}:manifest`, manifest)
+    },
+    getSidxManifest(uuid){
+        return ManifestCache.get(`${uuid}:manifest`)
     }
+
 }
 
 export default API
