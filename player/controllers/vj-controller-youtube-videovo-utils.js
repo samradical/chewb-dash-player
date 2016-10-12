@@ -1,5 +1,6 @@
 import Q from 'bluebird';
 import _ from 'lodash';
+
 let VIDEO_VO = {
   currentRefIndexs: null,
   currentRefDuration: 0,
@@ -31,6 +32,12 @@ class ArrayExtended extends Array {
   }
 }
 
+import {
+  Constants,
+} from '../../utils'
+
+const { ERROR_TYPES } = Constants;
+
 class VideoVOUtils {
 
   constructor(controller) {
@@ -44,7 +51,7 @@ class VideoVOUtils {
   //*****
   //PUBLIC
   //*****
-  getCurrentVideoVo(uuid) {
+  getVideoVo(uuid) {
     let _vo = this._getPlayedVideoVo(uuid)
     return _vo
   }
@@ -56,6 +63,7 @@ class VideoVOUtils {
   addRefToWatchedVideoVo(vo) {
     vo.currentRefIndexs.forEach(index => {
       vo.watchedRefs.add(index)
+      console.log('watched', index);
     })
   }
 
@@ -76,10 +84,10 @@ class VideoVOUtils {
     }
   }
 
-  isAtLastRef(vo){
-    let {currentRefIndexs,referencesLength} = vo
+  isAtLastRef(vo) {
+    let { currentRefIndexs, referencesLength } = vo
     let _lastRefIndex = currentRefIndexs[currentRefIndexs.length - 1]
-    return (_lastRefIndex === referencesLength-1)
+    return (_lastRefIndex === referencesLength - 1)
   }
 
 
@@ -104,6 +112,12 @@ class VideoVOUtils {
   getMediaSourceVo(manifest, vo, options = {}) {
     let { sidx } = manifest
     let { references } = sidx
+    if (!manifest || !sidx) {
+      let _err = new Error('No Manifest')
+      _err.name = ERROR_TYPES.VIDEO_VO
+      throw _err
+      return
+    }
     let { currentRefIndexs } = vo
     let startIndex = currentRefIndexs[0] || 0
     let endIndex = currentRefIndexs[currentRefIndexs.length - 1]
@@ -122,7 +136,7 @@ class VideoVOUtils {
     videoVo['byteRange'] = sRef['mediaRange'].split('-')[0] + '-' + brEnd;
     videoVo['byteLength'] = size;
     videoVo['codecs'] = manifest['codecs'];
-    videoVo['firstOffset'] = manifest.sidx['firstOffset'];
+    videoVo['firstOffset'] = sidx['firstOffset'];
     videoVo.indexRange = manifest.indexRange;
     videoVo.indexLength = sidx.firstOffset;
     videoVo['timestampOffset'] = sRef['startTimeSec'];

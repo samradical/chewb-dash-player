@@ -1,5 +1,7 @@
 import ExtensionBase from './vj-video-ext-base'
-
+import {
+  Utils,
+} from '../../../utils'
 export default class ExtensionLoop extends ExtensionBase {
   constructor(controller, options) {
     super(controller, options)
@@ -68,8 +70,12 @@ export default class ExtensionLoop extends ExtensionBase {
   }
 
   _onEndedSignal(mediaSource) {
-    let {currentTime, totalDuration, duration} = mediaSource
-    //mediaSource.currentTime = mediaSource.currentVo.startTime
+    let {currentTime, totalDuration, duration, currentVo} = mediaSource
+    let _earliestBuffered = mediaSource.sourceBufferedTimes.start(0)
+    let _latestBuffered = mediaSource.sourceBufferedTimes.end(0)
+    _latestBuffered -= currentVo.duration
+    let _seek = Utils.getRandomBetweenRange(_earliestBuffered, _latestBuffered)
+    mediaSource.currentTime = _seek
   }
 
   destroy() {

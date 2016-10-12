@@ -27,7 +27,7 @@ let TIMELINE_VO = {}
 class ControllerBase {
 
   constructor(options = {}) {
-  	let {emitter} = options
+    let { emitter } = options
     this._options = options
     this.mediaSources = []
     this._readyCheck = {
@@ -66,6 +66,7 @@ class ControllerBase {
       this._tryStart()
     })
 
+
   }
 
   //************
@@ -73,7 +74,7 @@ class ControllerBase {
   //************
 
   init() {
-
+    this._initListeners()
   }
 
   update() {
@@ -86,7 +87,6 @@ class ControllerBase {
     let _r = _.every(_.values(this._readyCheck), Boolean);
     if (_r) {
       if (!this._options.paused && !this._options.noAutoStart) {
-        this._initListeners()
         return this.addVo()
       }
     }
@@ -120,16 +120,16 @@ class ControllerBase {
   }
 
   addVo() {
-    return Q.map(this.mediaSources, mediaSource => {
-      return this._getMediaSourceVo(mediaSource)
-    }, { concurrency: 1 })
-  }
-  //*****************
-  //OVERRIDES
-  //*****************
-  /*
-  Override this
-  */
+      return Q.map(this.mediaSources, mediaSource => {
+        return this._getMediaSourceVo(mediaSource)
+      }, { concurrency: 1 })
+    }
+    //*****************
+    //OVERRIDES
+    //*****************
+    /*
+    Override this
+    */
   _getMediaSourceVo(mediaSource) {
 
   }
@@ -186,9 +186,9 @@ class ControllerBase {
         mediasources[0].stepForward(mediasources[0].currentVo.startTime)
       }).finally()
       /*this._loadNextSegment()
-      	.then((addedResult = {}) => {
-      		this._mediaSource.stepForward(addedResult.duration)
-      	}).finally()*/
+        .then((addedResult = {}) => {
+          this._mediaSource.stepForward(addedResult.duration)
+        }).finally()*/
   }
 
   _nextVideoVoSegment(videoVo) {
@@ -208,11 +208,11 @@ class ControllerBase {
     return (this.mediaSources.indexOf(ms) === 0)
   }
 
-  _setPlayedVideoVo(uuid, videoVo){
+  _setPlayedVideoVo(uuid, videoVo) {
     this._playedVideoVos.set(uuid, videoVo)
   }
 
-  _getPlayedVideoVo(uuid){
+  _getPlayedVideoVo(uuid) {
     return this._playedVideoVos.get(uuid)
   }
 
@@ -221,6 +221,7 @@ class ControllerBase {
   //**************
 
   _onEndingSignal(mediaSource) {
+    console.log('ending');
     if (this._isMediaSourceMaster(mediaSource)) {
       this.addVo().finally()
     }
@@ -251,17 +252,17 @@ class ControllerBase {
     }
     /*let _l = this.mediaSources.length
     if (_l > 1) {
-    	let _i = this.mediaSources.indexOf(mediaSource)
-    	let _other = (_i + 1)
-    	_other = (_other >= _l) ? 0 : _other;
-    	let _ms = this.mediaSources[_other]
-    		//sync 1 sec off
-    	let _diff = Math.abs(_ms.currentTime - mediaSource.currentTime)
-    	if (_diff > 1) {
-    		let _t = Math.min(_ms.currentTime, mediaSource.currentTime)
-    		_ms.currentTime = _t
-    		mediaSource.currentTime = _t
-    	}
+      let _i = this.mediaSources.indexOf(mediaSource)
+      let _other = (_i + 1)
+      _other = (_other >= _l) ? 0 : _other;
+      let _ms = this.mediaSources[_other]
+        //sync 1 sec off
+      let _diff = Math.abs(_ms.currentTime - mediaSource.currentTime)
+      if (_diff > 1) {
+        let _t = Math.min(_ms.currentTime, mediaSource.currentTime)
+        _ms.currentTime = _t
+        mediaSource.currentTime = _t
+      }
     }*/
   }
 

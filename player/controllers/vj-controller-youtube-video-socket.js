@@ -6,6 +6,7 @@ import {
   Constants,
   Cache
 } from '../../utils'
+const { ERROR_TYPES,MEDIASOURCE_TYPES } = Constants;
 
 class YoutubeVideoSocket {
 
@@ -42,7 +43,8 @@ class YoutubeVideoSocket {
     range,
     options = {
       youtubeDl: true,
-      isIndexRange: true
+      isIndexRange: true,
+      uuid:uuid,
     }) {
 
     return this._getSocketVideoRange(
@@ -77,8 +79,7 @@ class YoutubeVideoSocket {
 
   preload(mediaSource, videoId) {
     let _uuid = this.getUUID(mediaSource.type, videoId)
-    let _videoVo = this.videoVoUtils.getCurrentVideoVo(_uuid)
-    console.log(this.videoVoUtils);
+    let _videoVo = this.videoVoUtils.getVideoVo(_uuid)
 
     _videoVo.preloadPromise = this.getManifest(
         mediaSource,
@@ -101,9 +102,23 @@ class YoutubeVideoSocket {
         })
       })
       .catch(err => {
-        console.error(err);
+        this.controller._onMediaSourceError(Utils.getError(ERROR_TYPES.VIDEO_ID))
       })
       return _videoVo.preloadPromise
+  }
+
+  cancelPreload(videoId){
+    let _vuuid = this.getUUID(MEDIASOURCE_TYPES.VIDEO, videoId)
+    let _auuid = this.getUUID(MEDIASOURCE_TYPES.AUDIO, videoId)
+    let _videoVo = this.videoVoUtils.getVideoVo(_vuuid)
+    let _audioVo = this.videoVoUtils.getVideoVo(_auuid)
+    if(_videoVo){
+      if(_videoVo.preloadPromise){
+        _videoVo.preloadPromise.cancel()
+        _videoVo.preloadPromise = null
+        delete _videoVo.preloadPromise
+      }
+    }
   }
 
   getUUID(type, videoId) {
@@ -120,6 +135,10 @@ class YoutubeVideoSocket {
 
   get options(){
     return this._controller._options
+  }
+
+  get controller(){
+    return this._controller
   }
 
   _getSidx(vId, options = {}) {

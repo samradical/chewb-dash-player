@@ -7,7 +7,9 @@ import Signals from 'signals';
 import Q from 'bluebird';
 const { ERROR_TYPES } = Constants;
 
-let VERBOSE = false;
+let VERBOSE = true;
+const LOOP_RESET_MARGIN = 0.3;
+const END_OF_BUFFER_DEBOUNCE = 200;
 const BUFFER_MARGIN = 4;
 const BUFFER_MARGIN_2 = 0.7
 
@@ -129,6 +131,8 @@ class VjMediaSource {
       this.readySignal.dispatch(this);
       this.options.emitter.emit('mediasource:ready', this)
     });
+
+    this._debouncedEndOfBuffer = _.debounce(this._onEndOfBuffer.bind(this), END_OF_BUFFER_DEBOUNCE);
   }
 
   _newMediaSource() {
@@ -164,7 +168,7 @@ class VjMediaSource {
             this.sourceBuffer.addEventListener('sourceclose', this.onBufferSourceCloseBound, false)
             this.sourceBuffer.addEventListener('sourceended', this.onBufferSourceEndedBound, false)
           } catch (e) {
-            console.log(e);
+            this._onError(new Error(e.toString()), reject)
           }
           resolve()
         })
@@ -213,15 +217,19 @@ class VjMediaSource {
         this.options.emitter.emit('mediasource:ending', this)
       }
     }
-    if (ct >= this.totalDuration - 0.1) {
+    if (ct >= this.totalDuration - LOOP_RESET_MARGIN) {
       if (!this.ended) {
         this.ended = true;
-        console.log("ENDED");
-        this.endedSignal.dispatch(this);
-        this.options.emitter.emit('mediasource:ended', this)
+        this._debouncedEndOfBuffer()
       }
     }
     this.timeUpdateSignal.dispatch(this)
+  }
+
+  _onEndOfBuffer() {
+    this.endedSignal.dispatch(this);
+    this.options.emitter.emit('mediasource:ended', this)
+    this.ended = false;
   }
 
   get el() {
@@ -288,9 +296,10 @@ class VjMediaSource {
   }
 
   addVo(currentVo) {
+    console.log(currentVo);
     this._activePromiseChain = new Q((resolve, reject) => {
       if (this._addingSegment) {
-        return reject(new Error(`Vo being added`))
+        this._onError(new Error(`Vo being added`), reject)
       }
       this._addingSegment = true
 
@@ -303,10 +312,10 @@ class VjMediaSource {
         return this._newMediaSource()
           .then(() => {
             return this._newBufferSouce()
-            .then(()=>{
-              console.log('Success!!!!!!');
-              resolve(this._readyToAdd(currentVo))
-            })
+              .then(() => {
+                console.log('Created new buffer source!');
+                resolve(this._readyToAdd(currentVo))
+              })
           })
         this.options.emitter.emit('audio:warn', `The codecs arnt equal`);
       } else {
@@ -319,8 +328,8 @@ class VjMediaSource {
         } else {
           return this._newBufferSouce(currentVo.codecs)
             .then(() => {
-            resolve(this._readyToAdd(currentVo))
-          });
+              resolve(this._readyToAdd(currentVo))
+            });
           this.options.emitter.emit('audio:warn', `The codecs arnt equal`);
         }
       }
@@ -341,10 +350,24 @@ class VjMediaSource {
 
   _onBufferSourceRemoved() {
 
-    }
-    ////-----------------
-    //BUFFER HANDLERS
-    ////-----------------
+  }
+
+  get sourceBufferedTimes() {
+    return this.sourceBuffer.buffered
+  }
+
+  get sourceBufferStart(){
+    return this.sourceBuffer.buffered.start(0)
+  }
+
+  get sourceBufferEnd(){
+    return this.sourceBuffer.buffered.end(0)
+  }
+
+
+  ////-----------------
+  //BUFFER HANDLERS
+  ////-----------------
 
 
   onBufferUpdateStart() {
@@ -370,10 +393,10 @@ class VjMediaSource {
     this.resetMediasource()
       .then(() => {
         this._activePromiseChain._reject()
-        //Q.resolve()
-        //this._activePromiseChain.resolve(this)
-        //console.log(this._activePromiseChain);
-        //return this._readyToAdd(this.currentVo)
+          //Q.resolve()
+          //this._activePromiseChain.resolve(this)
+          //console.log(this._activePromiseChain);
+          //return this._readyToAdd(this.currentVo)
       }).finally();
   }
 
@@ -405,14 +428,23 @@ class VjMediaSource {
                 return this._addResponse(this.currentVo, this.currentVo.videoBuffer)
                   .then(() => {
                     this._addingSegment = false
+                      //
+                    this._setCurrentTimeToVo(currentVo)
                     return this
                   })
-                  .catch(err=>{
+                  .catch(err => {
                     console.log(err);
                   })
               })
           })
       })
+  }
+
+  _setCurrentTimeToVo(vo){
+    let _dur = vo.duration
+    let _end = Math.min(this.totalDuration, this.sourceBufferEnd)
+    let _t = _end - _dur
+    this.currentTime = _t
   }
 
   _trySettingOffset(vo, off) {
@@ -433,8 +465,7 @@ class VjMediaSource {
             if (VERBOSE) {
               console.error(`Error _trySettingOffset of: ${off}... ${e.toString()}`);
             }
-            resolve()
-              //reject(new Error(`${ERROR_TYPES.FATAL}:${vo.videoId}`))
+            _self._onError(new Error(`Failed setting timeoffset`), reject)
           }
         } else {
           if (VERBOSE) {
@@ -455,7 +486,7 @@ class VjMediaSource {
           _self.sourceBuffer.removeEventListener('updateend', _onInitAdded);
           resolve()
         } catch (e) {
-          reject(e)
+          _self._onError(new Error(e.toString()), reject)
         }
         if (VERBOSE) {
           console.log("Init response added: ", vo.videoId || vo.id);
@@ -466,10 +497,7 @@ class VjMediaSource {
         try {
           _self.sourceBuffer.appendBuffer(initResp);
         } catch (e) {
-          console.log(vo);
-          //_self._newBufferSouce().then(_tryAppend).finally()
-          console.log(e);
-          reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId || vo.id}`))
+          _self._onError(new Error(e.toString()), reject)
         }
       }
 
@@ -494,15 +522,15 @@ class VjMediaSource {
 
       function _onResponseAdded() {
         try {
-          if(_self.sourceBuffer){
+          if (_self.sourceBuffer) {
             _self.sourceBuffer.removeEventListener('updateend', _onResponseAdded);
             _self.onBufferUpdateEndBound()
             resolve()
-          }else{
-            reject(new Error(`no source buffer on _onResponseAdded ${vo.videoId || vo.id}`))
+          } else {
+            _self._onError(new Error(`no source buffer on _onResponseAdded ${vo.videoId || vo.id}`), reject)
           }
         } catch (e) {
-          reject(e)
+          _self._onError(new Error(e.toString()), reject)
         }
       }
 
@@ -529,10 +557,10 @@ class VjMediaSource {
             console.log(e.name);
             console.log(e);
           }
-          //reject(new Error(`${ERROR_TYPES.RECOVER}:${vo.videoId}`))
+          _self._onError(new Error(e.toString()), reject)
         }
       } else {
-        console.error(`Cannot update video!`);
+        _self._onError(new Error('Cannot update video'), reject)
       }
     })
   }
@@ -545,6 +573,14 @@ class VjMediaSource {
 
   _canUpdate() {
     return this.mediaSource.readyState === 'open' && !this.sourceBuffer.updating;
+  }
+
+  _onError(err, reject) {
+    this.requestingNewVo = false;
+    this._addingSegment = false;
+    this.starting = false;
+    err.name = ERROR_TYPES.MEDIASOURCE
+    reject(err)
   }
 
   _removeSourceBuffer() {
@@ -583,8 +619,8 @@ class VjMediaSource {
         this.mediaSource = null;
         this.sourceBuffer = null;
         this.requestingNewVo = false;
-        this.enterFrameCounter = 0;
         this._addingSegment = false;
+        this.enterFrameCounter = 0;
         this.starting = false;
         this.videoElement.currentTime = 0;
         this.totalDuration = this.segDuration = this.playOffset = 0;

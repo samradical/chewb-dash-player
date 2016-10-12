@@ -67,7 +67,7 @@ class VjManager {
 
     let _controller
 
-    if (options.playlists.length) {
+    if (options.playlists) {
       _controller = new ControllerYoutubeVideo(options)
     } else {
       _controller = new ControllerVideo(options)
@@ -211,7 +211,7 @@ class VjManager {
 
   get controllers() {
     return this.playerGroups.map(group => {
-      return group.controller
+      return group.controller.api
     })
   }
 }
