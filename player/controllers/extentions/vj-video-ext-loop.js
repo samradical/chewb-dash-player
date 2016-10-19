@@ -5,7 +5,7 @@ import {
 export default class ExtensionLoop extends ExtensionBase {
   constructor(controller, options) {
     super(controller, options)
-    let {emitter} = options
+    let { emitter } = options
     this._startBound = this._start.bind(this)
     this._loopBound = this._loop.bind(this)
     this._onTimeupdateSignalBound = this._onTimeupdateSignal.bind(this)
@@ -61,21 +61,37 @@ export default class ExtensionLoop extends ExtensionBase {
   }
 
   _onTimeupdateSignal(mediaSource) {
-/*    this._currentTime = currentTime
-    if (this.endTime) {
-      if (this._currentTime > this._endTime) {
-        this._mediaSouce.currentTime = this.startTime
-      }
-    }*/
+    /*    this._currentTime = currentTime
+        if (this.endTime) {
+          if (this._currentTime > this._endTime) {
+            this._mediaSouce.currentTime = this.startTime
+          }
+        }*/
   }
 
   _onEndedSignal(mediaSource) {
-    let {currentTime, totalDuration, duration, currentVo} = mediaSource
-    let _earliestBuffered = mediaSource.sourceBufferedTimes.start(0)
-    let _latestBuffered = mediaSource.sourceBufferedTimes.end(0)
-    _latestBuffered -= currentVo.duration
-    let _seek = Utils.getRandomBetweenRange(_earliestBuffered, _latestBuffered)
-    mediaSource.currentTime = _seek
+    let { currentTime, totalDuration, duration, currentVo } = mediaSource
+    let _earliestBuffered
+    let _latestBuffered
+      //this can be null
+    let _canGet = true
+    if (mediaSource.sourceBufferedTimes) {
+      try {
+        _earliestBuffered = mediaSource.sourceBufferedTimes.start(0)
+      } catch (e) {
+        _canGet = false
+      }
+      try {
+        _latestBuffered = mediaSource.sourceBufferedTimes.end(0)
+        _latestBuffered -= currentVo.duration
+      } catch (e) {
+        _canGet = false
+      }
+      if (_canGet) {
+        let _seek = Utils.getRandomBetweenRange(_earliestBuffered, _latestBuffered)
+        mediaSource.currentTime = _seek
+      }
+    }
   }
 
   destroy() {

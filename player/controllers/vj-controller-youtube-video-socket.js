@@ -51,6 +51,7 @@ class YoutubeVideoSocket {
       _.assign({}, {
         uuid: uuid,
         url: url,
+        totalBytes:0,
         range: range
       }, options)
     ).then(buffer=>{
@@ -71,6 +72,7 @@ class YoutubeVideoSocket {
       _.assign({}, {
         uuid: uuid,
         url: url,
+        totalBytes:0,
         range: range
       }, options)
     )

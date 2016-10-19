@@ -1,12 +1,14 @@
 import _ from 'lodash';
 
 import {
-  Utils,
-  Emitter,
-  Metronome
+	Utils,
+	Emitter,
+	Metronome
 } from '../utils'
 
 import Signals from 'signals';
+
+import YoutubeSocket from '@samelie/dash-player-youtube-socket'
 
 import VjMediaSource from './vj-mediasource-socket';
 import VjVideoCanvas from './vj-video-canvas';
@@ -17,203 +19,213 @@ import VjUtils from './vj-utils';
 
 class VjManager {
 
-  constructor(Controller = {}, id="") {
-    this.options = Controller.toJson()
-    this.mediaSourcesConfigs = this.options.mediaSources;
+	constructor(Controller = {}, id = "") {
+		this.options = Controller.toJson()
+		this.mediaSourcesConfigs = this.options.mediaSources;
 
-    this.playerGroups = [];
-    this.videoCanvases = [];
+		this._socketService = new YoutubeSocket(Controller.socket)
 
-    this.parent = this.options.el || document.body;
-    this.boundUpdate = this._update.bind(this);
+		this.playerGroups = [];
+		this.videoCanvases = [];
 
-    this._emitter = new Emitter()
+		this.parent = this.options.el || document.body;
+		this.boundUpdate = this._update.bind(this);
 
-    this._emitter.on('mediasource:videostarting', (mediasource) => {
-      for (let i = 0; i < this._videoCanvasesLength; i++) {
-        this.videoCanvases[i].onResize(window.innerWidth, window.innerHeight);
-      }
-    })
-    _.each(this.mediaSourcesConfigs, (mediaPlayersOptions) => {
-      let _o = {
-        readySignal: new Signals(),
-        videoStartedSignal: new Signals(),
-        videoPlayingSignal: new Signals(),
-        videoPausedSignal: new Signals(),
-        videoWaitingSignal: new Signals(),
-        segmentAddedSignal: new Signals(),
-        timeUpdateSignal: new Signals(),
-        endingSignal: new Signals(),
-        endedSignal: new Signals()
-      }
-      _.forIn(_o, (val, key) => {
-        mediaPlayersOptions[key] = val
-      })
-      mediaPlayersOptions.emitter = this._emitter
-      Object.freeze(mediaPlayersOptions)
-      this._createController(mediaPlayersOptions)
-    })
+		this._emitter = new Emitter()
 
-    this._update();
-  }
+		this._emitter.on('mediasource:videostarting', (mediasource) => {
+			for (let i = 0; i < this._videoCanvasesLength; i++) {
+				this.videoCanvases[i].onResize(window.innerWidth, window.innerHeight);
+			}
+		})
 
-  _createController(options) {
+		_.each(this.mediaSourcesConfigs, (mediaPlayersOptions) => {
+			let _o = {
+				readySignal: new Signals(),
+				videoStartedSignal: new Signals(),
+				videoUpdateStartedSignal:new Signals(),
+				videoUpdateEndedSignal: new Signals(),
+				videoPlayingSignal: new Signals(),
+				videoPausedSignal: new Signals(),
+				videoWaitingSignal: new Signals(),
+				segmentAddedSignal: new Signals(),
+				timeUpdateSignal: new Signals(),
+				endingSignal: new Signals(),
+				endedSignal: new Signals()
+			}
+			_.forIn(_o, (val, key) => {
+				mediaPlayersOptions[key] = val
+			})
+			mediaPlayersOptions.emitter = this._emitter
+			Object.freeze(mediaPlayersOptions)
+			this._createController(mediaPlayersOptions)
+		})
 
-    let _group = {
+		this._update();
+	}
 
-    }
-    this.playerGroups.push(_group)
-    this.playerGroupsLength = this.playerGroups.length
+	_createController(options) {
 
-    let _controller
+		let _group = {
 
-    if (options.playlists) {
-      _controller = new ControllerYoutubeVideo(options)
-    } else {
-      _controller = new ControllerVideo(options)
-    }
+		}
 
-    if (options.video) {
-      _controller.videoSource = this._createMediaSource(
-        options,
-        'video'
-      )
+		this.playerGroups.push(_group)
+		this.playerGroupsLength = this.playerGroups.length
 
-      _controller.mediaSources.push(_controller.videoSource)
+		let _controller
 
-      if (!options.noVideoCanvas) {
-        _controller.videoCanvas = this._createVideoCanvas(
-          _controller.videoSource,
-          options,
-          options.videoCanvas
-        )
-      }
-    }
+		if (options.playlists) {
+			_controller = new ControllerYoutubeVideo(
+				this._socketService,
+				options)
+		} else {
+			//TODO
+			throw new Error('Only youtube for now')
+				//_controller = new ControllerVideo(options)
+		}
 
-    if (options.audio) {
-      _controller.audioSource = this._createMediaSource(
-        options,
-        'audio'
-      )
-      _controller.mediaSources.push(_controller.audioSource)
-    }
+		if (options.video) {
+			_controller.videoSource = this._createMediaSource(
+				options,
+				'video'
+			)
 
-    _group.controller = _controller
+			_controller.mediaSources.push(_controller.videoSource)
 
-    _controller.init()
-  }
+			if (!options.noVideoCanvas) {
+				_controller.videoCanvas = this._createVideoCanvas(
+					_controller.videoSource,
+					options,
+					options.videoCanvas
+				)
+			}
+		}
 
-  _createMediaSource(options, type) {
-    let _ms = new VjMediaSource(options, type)
-    if (options.verbose) {
-      this.parent.appendChild(_ms.el);
-    }
-    return _ms
-  }
+		if (options.audio) {
+			_controller.audioSource = this._createMediaSource(
+				options,
+				'audio'
+			)
+			_controller.mediaSources.push(_controller.audioSource)
+		}
 
-  _createVideoCanvas(mediaSource, options) {
-    let _v = new VjVideoCanvas(mediaSource,
-      options,
-      options.videoCanvas
-    );
-    if (options.verbose) {
-      this.parent.appendChild(_v.el);
-    }
-    return _v
-  }
+		_group.controller = _controller
 
-  /*
-    _createMediaSource(options) {
-      let _isAudio = !options.quality.videoOnly
-      let _isVideo = options.quality.videoOnly
-      let _ms = new VjMediaSource(options)
-      let _group = {
+		_controller.init()
+	}
 
-      }
-      this.playerGroups.push(_group)
-      this.playerGroupsLength = this.playerGroups.length
+	_createMediaSource(options, type) {
+		let _ms = new VjMediaSource(options, type)
+		if (options.verbose) {
+			this.parent.appendChild(_ms.el);
+		}
+		return _ms
+	}
 
-      if (!_isAudio && !options.noVideoCanvas) {
-        this.videoCanvases.push(new VjVideoCanvas(_ms, options, options.videoCanvas));
-        this._videoCanvasesLength = this.videoCanvases.length
-      }
-      //options.controller.mediaSource = _ms
-      let _controller,
-        _controllerOptions = _.assign({}, options, options.controller)
-      if (_controllerOptions.playlists.length) {
-        _controller = new ControllerYoutubeVideo(_ms, _controllerOptions)
+	_createVideoCanvas(mediaSource, options) {
+		let _v = new VjVideoCanvas(mediaSource,
+			options,
+			options.videoCanvas
+		);
+		if (options.verbose) {
+			this.parent.appendChild(_v.el);
+		}
+		return _v
+	}
 
-      } else {
-        _controller = new ControllerVideo(_ms, _controllerOptions)
-      }
+	/*
+		_createMediaSource(options) {
+			let _isAudio = !options.quality.videoOnly
+			let _isVideo = options.quality.videoOnly
+			let _ms = new VjMediaSource(options)
+			let _group = {
 
-      if (_controllerOptions.verbose) {
-        this.parent.appendChild(_ms.el);
-      }
+			}
+			this.playerGroups.push(_group)
+			this.playerGroupsLength = this.playerGroups.length
 
-      _group.mediasource = _ms
-      _group.controller = _controller
-    }*/
+			if (!_isAudio && !options.noVideoCanvas) {
+				this.videoCanvases.push(new VjVideoCanvas(_ms, options, options.videoCanvas));
+				this._videoCanvasesLength = this.videoCanvases.length
+			}
+			//options.controller.mediaSource = _ms
+			let _controller,
+				_controllerOptions = _.assign({}, options, options.controller)
+			if (_controllerOptions.playlists.length) {
+				_controller = new ControllerYoutubeVideo(_ms, _controllerOptions)
 
-  _update() {
-    if (this.options.autoUpdate) {
-      for (let i = 0; i < this.playerGroupsLength; i++) {
-        this.playerGroups[i].controller.update();
-      }
-      this.requestId = window.requestAnimationFrame(this.boundUpdate);
-    }
-  }
+			} else {
+				_controller = new ControllerVideo(_ms, _controllerOptions)
+			}
 
-  onWindowResize(w, h) {
-    for (let i = 0; i < this._videoCanvasesLength; i++) {
-      this.videoCanvases[i].onResize(w, h);
-    }
-  }
+			if (_controllerOptions.verbose) {
+				this.parent.appendChild(_ms.el);
+			}
 
-  on(event, callback) {
-    Emitter.on(`user:${event}`, callback)
-  }
+			_group.mediasource = _ms
+			_group.controller = _controller
+		}*/
 
-  off(event, callback) {
-    Emitter.off(`user:${event}`, callback)
-  }
+	_update() {
+		if (this.options.autoUpdate) {
+			for (let i = 0; i < this.playerGroupsLength; i++) {
+				this.playerGroups[i].controller.update();
+			}
+			this.requestId = window.requestAnimationFrame(this.boundUpdate);
+		}
+	}
 
-  // set controller(contoller) {
-  //     this._controller = contoller
-  //     this._controller.addVoSignal.add(() => {
+	onWindowResize(w, h) {
+		for (let i = 0; i < this._videoCanvasesLength; i++) {
+			this.videoCanvases[i].onResize(w, h);
+		}
+	}
 
-  //     })
-  // }
+	on(event, callback) {
+		this._emitter.on(`user:${event}`, callback)
+	}
 
-  update() {
-    this.boundUpdate();
-  }
+	off(event, callback) {
+		this._emitter.off(`user:${event}`, callback)
+	}
 
-  getCanvasAt(index) {
-    return this.videoCanvas[index].getCanvas();
-  }
+	// set controller(contoller) {
+	//     this._controller = contoller
+	//     this._controller.addVoSignal.add(() => {
 
-  getBuffersAt(index) {
-    return this.videoCanvas[index].getBuffers();
-  }
+	//     })
+	// }
 
-  get mediaSources() {
-    return this.playerGroups.map(group => {
-      return group.controller.mediaSources
-    })
-  }
+	update() {
+		this.boundUpdate();
+	}
 
-  get videoCanvas() {
-    return this.playerGroups.map(group => {
-      return group.controller.videoCanvas
-    })
-  }
+	getCanvasAt(index) {
+		return this.videoCanvas[index].getCanvas();
+	}
 
-  get controllers() {
-    return this.playerGroups.map(group => {
-      return group.controller.api
-    })
-  }
+	getBuffersAt(index) {
+		return this.videoCanvas[index].getBuffers();
+	}
+
+	get mediaSources() {
+		return this.playerGroups.map(group => {
+			return group.controller.mediaSources
+		})
+	}
+
+	get videoCanvas() {
+		return this.playerGroups.map(group => {
+			return group.controller.videoCanvas
+		})
+	}
+
+	get controllers() {
+		return this.playerGroups.map(group => {
+			return group.controller.api
+		})
+	}
 }
 
 export default VjManager;

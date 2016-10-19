@@ -58,6 +58,8 @@ class VjMediaSource {
     this.readySignal = this.options.readySignal
     this.videoPlayingSignal = this.options.videoPlayingSignal
     this.videoStartedSignal = this.options.videoStartedSignal
+    this.videoUpdateStartedSignal = this.options.videoUpdatedStartedSignal
+    this.videoUpdateEndedSignal = this.options.videoUpdateEndedSignal
     this.segmentAddedSignal = this.options.segmentAddedSignal
     this.timeUpdateSignal = this.options.timeUpdateSignal
     this.endingSignal = this.options.endingSignal
@@ -307,10 +309,12 @@ class VjMediaSource {
     this.updatedStarted = true;
     this.requestingNewVo = false;
     this.ended = false;
+    Emitter.emit('mediasource:updatestart', this)
   }
 
   onBufferUpdateEnd() {
     this.updatedStarted = false;
+    Emitter.emit('mediasource:updateend', this)
     if (VERBOSE) {
       Emitter.emit('audio:log', `Sourcebuffer updated. Is updating: ${this.sourceBuffer.updating}`);
     }

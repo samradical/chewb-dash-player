@@ -41,6 +41,10 @@ class Controller {
     this.autoUpdate = options.autoUpdate
     this.serverBase = options.serverBase
     this.mediaSources = []
+    this.socket = opt.socket
+    if(!this.socket){
+      throw new Error('Pass a socketIo instance {socket: instance}')
+    }
   }
 
   addSource(options = {}) {

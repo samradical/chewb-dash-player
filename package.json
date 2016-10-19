@@ -11,6 +11,7 @@
   },
   "main": "index.js",
   "dependencies": {
+    "@samelie/dash-player-youtube-socket": "*",
     "bluebird": "^3.4.1",
     "isomorphic-fetch": "^2.2.1",
     "jquery": "^3.1.0",
