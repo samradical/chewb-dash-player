@@ -6,18 +6,18 @@ import {
 	Constants
 } from '../../utils'
 
-const { ERROR_TYPES , BEHAVIORS} = Constants;
+const { ERROR_TYPES, BEHAVIORS } = Constants;
 
 
 import ServerService from '../../service/serverService';
 
-import { VideoLoop, Shuffle, MusicVideo,Preload } from './extentions'
+import { VideoLoop, Shuffle, MusicVideo, Preload } from './extentions'
 
 const EXT_MAP = {
 	loop: VideoLoop,
 	shuffle: Shuffle,
-	musicVideo:MusicVideo,
-	preload:Preload
+	musicVideo: MusicVideo,
+	preload: Preload
 }
 
 let VIDEO_VO = {
@@ -126,6 +126,13 @@ class ControllerBase {
 	}
 
 	addVo() {
+			//in base
+			let _isPaused = this._checkIfPaused()
+
+			if(_isPaused){
+				return Q.resolve()
+			}
+
 			return Q.map(this.mediaSources, mediaSource => {
 				return this._getMediaSourceVo(mediaSource)
 			}, { concurrency: 1 })
@@ -140,18 +147,18 @@ class ControllerBase {
 
 	}
 
-	_onBehavior(type){
-		switch(type){
+	_onBehavior(type) {
+		switch (type) {
 			case BEHAVIORS.VIDEO_PASSED_DURATION:
-			break;
+				break;
 		}
 	}
 
-	_onVideoUpdateStartedSignal(mediaSource){
+	_onVideoUpdateStartedSignal(mediaSource) {
 
 	}
 
-	_onVideoUpdateEndedSignal(mediaSource){
+	_onVideoUpdateEndedSignal(mediaSource) {
 
 	}
 
@@ -174,7 +181,7 @@ class ControllerBase {
 		return this._options
 	}
 
-	get emitter(){
+	get emitter() {
 		return this._options.emitter
 	}
 
@@ -206,10 +213,12 @@ class ControllerBase {
 		this._previousVideoVoSegment(_videoVo)
 	}
 
+
 	_loadNextSegmentAndSkip() {
-		this.addVo().then(mediasources => {
+	/*	this.addVo()
+		.then(mediasources => {
 				mediasources[0].stepForward(mediasources[0].currentVo.startTime)
-			}).finally()
+			}).finally()*/
 			/*this._loadNextSegment()
 				.then((addedResult = {}) => {
 					this._mediaSource.stepForward(addedResult.duration)
@@ -339,6 +348,22 @@ class ControllerBase {
 
 	unshiftNewVideo(value) {
 
+	}
+
+	pause() {
+		this._isPaused = true
+	}
+
+	seek(val) {
+		console.log(val);
+	}
+
+	resume() {
+		this._isPaused = false
+	}
+
+	_checkIfPaused(ms) {
+		return this._isPaused
 	}
 }
 

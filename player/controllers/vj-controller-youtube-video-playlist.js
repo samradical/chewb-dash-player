@@ -20,10 +20,6 @@ class VideoControllerPlaylist {
 		this.youtubeItemIds = [];
 	}
 
-	get current() {
-		return this.youtubeItemIds[0]
-	}
-
 	get videoVoUtils() {
 		return this.controller.videoVoUtils
 	}
@@ -73,6 +69,11 @@ class VideoControllerPlaylist {
 		this.youtubeItems = [...data.items, ...this.youtubeItems];
 		this.youtubeItemIds = _.uniq([..._ids, ...this.youtubeItemIds]);
 		this._updateUserPlaylist()
+			//was out
+		if (this.playlistEmpty) {
+			this.playlistEmpty = false
+			return this.controller.addVo().finally()
+		}
 	}
 
 	get playlists() {
@@ -85,6 +86,10 @@ class VideoControllerPlaylist {
 
 	get options() {
 		return this.controller._options
+	}
+
+	get current() {
+		return this.youtubeItemIds[0]
 	}
 
 	get nextVideoId() {
@@ -103,23 +108,49 @@ class VideoControllerPlaylist {
 		this._updateUserPlaylist()
 	}
 
-	moveToFront(videoId) {
+	moveToFront(videoId, youtubeItem) {
 		let _i = this.youtubeItemIds.indexOf(videoId)
+			//exists
 		if (_i > -1) {
 			let _id = this.youtubeItemIds.splice(_i, 1)[0]
 			this.youtubeItemIds.unshift(_id)
+			this._updateUserPlaylist()
+		} else {
+			this.youtubeItems.unshift(youtubeItem)
+			this.youtubeItemIds.unshift(videoId)
 			this._updateUserPlaylist()
 		}
 	}
 
 	/*
 	tell the video vo
+	called by
+	EXHAUSED_VIDEO_REFERENCES at _onMediaSourceError
 	*/
 	next() {
+		//reset indexs
+		let _vo = this.videoVoUtils.current
+		if (this.videoVoUtils.isAtLastRef(_vo)) {
+			this.videoVoUtils.resetVo(_vo)
+		}
 		//remove the front
 		let _id = this.youtubeItemIds.shift()
+			//move to end
+		this.youtubeItemIds.push(_id)
+			//out
+		if (!this.youtubeItemIds.length) {
+			this.playlistEmpty = true
+		}
 		let _currentVo = this.videoVoUtils.current
 		this.videoVoUtils.videoVoFinished(_currentVo)
+		this._updateUserPlaylist()
+	}
+
+	previous() {
+		//remove the back
+		let _id = this.youtubeItemIds.pop()
+			//move to front
+		this.youtubeItemIds.unshift(_id)
 		this._updateUserPlaylist()
 	}
 

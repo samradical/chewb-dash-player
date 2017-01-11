@@ -38,6 +38,7 @@ class UserEvents {
 	newVideo(vo) {
 		let videoId  = getVideoIdFromUUID(vo.uuid)
 		let ytItem = this.videoPlaylist.getInfoById(videoId)
+		console.log(ytItem);
 		this.emitter.emit(`user:${USER_EVENTS.VIDEO_FINISHED}`, ytItem)
 	}
 

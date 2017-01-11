@@ -6,7 +6,7 @@ let VIDEO_VO = {
 	currentRefDuration: 0,
 	watchedRefs: null,
 	timelineTotal: 0,
-	playDurationCounter:0,
+	playDurationCounter: 0,
 	type: null, //audio, video
 	referenceDuration: undefined,
 	referencesLength: undefined
@@ -39,7 +39,7 @@ import {
 	Constants,
 } from '../../utils'
 
-const { ERROR_TYPES , BEHAVIORS} = Constants;
+const { ERROR_TYPES, BEHAVIORS } = Constants;
 
 class VideoVOUtils {
 
@@ -47,7 +47,7 @@ class VideoVOUtils {
 		this._controller = controller
 	}
 
-	get controller(){
+	get controller() {
 		return this._controller
 	}
 
@@ -55,11 +55,11 @@ class VideoVOUtils {
 		return this.controller.userEvents
 	}
 
-	set behavior(behavior){
+	set behavior(behavior) {
 		this._behavior = behavior
 	}
 
-	get behavior(){
+	get behavior() {
 		return this._behavior || {}
 	}
 
@@ -71,12 +71,12 @@ class VideoVOUtils {
 	//PUBLIC
 	//*****
 
-	get current(){
+	get current() {
 		return this._current
 	}
 
-	set current(vo){
-		if(vo){
+	set current(vo) {
+		if (vo) {
 			this.userEvents.newVideo(vo)
 		}
 		this._current = vo || {}
@@ -91,8 +91,8 @@ class VideoVOUtils {
 		vo.referencesLength = l
 	}
 
-	_setReferenceDuration(manifest, vo){
-		let {references} = manifest.sidx
+	_setReferenceDuration(manifest, vo) {
+		let { references } = manifest.sidx
 		vo.referenceDuration = references[0].durationSec
 	}
 
@@ -103,9 +103,9 @@ class VideoVOUtils {
 		})
 	}
 
-	seek(percent, vo){
+	seek(percent, vo) {
 		vo = vo || this.current
-		if(vo){
+		if (vo) {
 			let t = vo.referencesLength
 			let i = Math.floor(t * percent)
 			console.log(i, t, vo.uuid);
@@ -113,10 +113,12 @@ class VideoVOUtils {
 		}
 	}
 
-	setRefIndex(vo, value) {
-		vo.currentRefIndexs = value
-	}
-
+	setRefIndex(vo, range = [0]) {
+			vo.currentRefIndexs = range
+		}
+		/*
+		currentRefIndexs = [1,2,3]
+		*/
 	incrementRefIndex(vo, amount = 1, callback) {
 		let _refIndexs = vo.currentRefIndexs
 		let _firstRefIndex = _refIndexs[_refIndexs.length - 1] + 1
@@ -136,15 +138,26 @@ class VideoVOUtils {
 
 	isAtLastRef(vo) {
 		let { currentRefIndexs, referencesLength } = vo
+		if(!currentRefIndexs.length){
+			return true
+		}
 		let _lastRefIndex = currentRefIndexs[currentRefIndexs.length - 1]
 		return (_lastRefIndex === referencesLength - 1)
 	}
 
-	mediaSouceVoPlayed(vo, mediaSourceVo){
-		vo.playDurationCounter  += mediaSourceVo.duration
-		let {videoPlayDuration} = this.behavior
-		//console.log(vo.playDurationCounter, videoPlayDuration);
-		if(vo.playDurationCounter > videoPlayDuration){
+	//reset
+	/*if(this.isAtLastRef(vo)){
+		this.setRefIndex(vo)
+	}*/
+
+	/*
+
+	*/
+	mediaSouceVoPlayed(vo, mediaSourceVo) {
+		vo.playDurationCounter += mediaSourceVo.duration
+		let { videoPlayDuration } = this.behavior
+
+		if (vo.playDurationCounter > videoPlayDuration) {
 			this.controller.behaviorSignal.dispatch(BEHAVIORS.VIDEO_PASSED_DURATION)
 		}
 	}
@@ -153,10 +166,14 @@ class VideoVOUtils {
 	We have moved on to another video
 	reset playsuration
 	*/
-	videoVoFinished(vo = {}){
+	videoVoFinished(vo = {}) {
 		vo.playDurationCounter = 0
 	}
 
+	resetVo(vo) {
+		vo.watchedRefs.clear()
+		this.setRefIndex(vo, [-1])
+	}
 
 
 	//*****

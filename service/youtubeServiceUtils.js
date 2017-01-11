@@ -19,6 +19,7 @@ const ITERATIONS_BEFORE_ACCEPT = 30;
 const ITERATIONS_BEFORE_REJECT = 30;
 
 function _hasFoundMatchingYoutube(trackObj, item) {
+	console.log(item);
 	let ytDuration = _parseDuration(item.contentDetails.duration);
 	let title = S(item.snippet.title).stripPunctuation().s.toLowerCase();
 	let trackTitle = S(trackObj.title).stripPunctuation().s.toLowerCase();

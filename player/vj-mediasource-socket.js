@@ -294,6 +294,13 @@ class VjMediaSource {
 		this.videoElement.currentTime = _target
 	}
 
+	seek(val) {
+		let _start = this.sourceBufferStart
+		let _end = this.sourceBufferEnd
+		let _v = (_end - _start) * val
+		this.currentTime = Math.min(_v + _start, _end)
+	}
+
 	setPlaybackRate(rate) {
 		this.videoElement.playbackRate = rate;
 	}
@@ -408,7 +415,7 @@ class VjMediaSource {
 		this.updatedStarted = false;
 		this.state = MEDIASOURCE_STATE.IDLE
 		this.videoUpdateEndedSignal.dispatch(this)
-		//this._updatedEndPromise.resolve()
+			//this._updatedEndPromise.resolve()
 		if (VERBOSE) {
 			this.options.emitter.emit('audio:log', `Sourcebuffer updated. Is updating: ${this.sourceBuffer.updating}`);
 		}
@@ -588,8 +595,8 @@ class VjMediaSource {
 				try {
 					if (_self.sourceBuffer) {
 						if (VERBOSE) {
-						console.log("Added segment: ", vo.id, "Total duration:", _self.totalDuration);
-					}
+							console.log("Added segment: ", vo.id, "Total duration:", _self.totalDuration);
+						}
 						_self.sourceBuffer.removeEventListener('updateend', _onResponseAdded);
 						_self.onBufferUpdateEndBound()
 						resolve()

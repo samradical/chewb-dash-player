@@ -39,6 +39,7 @@ class VideoController extends ControllerBase {
 		this._videoPlaylist = new VideoPlaylist(this)
 
 		this.state = CONTROLLER_STATE.IDLE
+
 	}
 
 	init() {
@@ -51,6 +52,12 @@ class VideoController extends ControllerBase {
 			.catch(err => {
 				console.log(err);
 			})
+	}
+
+	tryPlay() {
+		if (this.state === CONTROLLER_STATE.IDLE) {
+			this.addVo().finally()
+		}
 	}
 
 	_getSidxQualityOptions(quality) {
@@ -94,7 +101,7 @@ class VideoController extends ControllerBase {
 				).then(manifest => {
 					this._onManifestReceived(mediaSource, _videoVo, manifest)
 
-						//we make a new object
+					//we make a new object
 					let _mediaSourceVo = this._createMediaSourceVo(manifest, _videoVo, this._options)
 
 					return this._getIndexBuffer(
@@ -174,6 +181,7 @@ class VideoController extends ControllerBase {
 				this._videoVoUtils.mediaSouceVoPlayed(videoVo, mediaSourceVo)
 				this.voAddedSignal.dispatch(mediaSource)
 				this._onSegmentAdded(mediaSource)
+				this.DUMMY_ERROR = 0
 				mediaSourceVo = null
 				return mediaSource
 			})
@@ -229,7 +237,7 @@ class VideoController extends ControllerBase {
 				*/
 				return this.addVo().finally()
 				break;
-			//case SIDX:
+			case SIDX:
 			case APPEND_FAILED:
 				this._setNextVideoId()
 				return this.addVo().finally()
@@ -242,6 +250,8 @@ class VideoController extends ControllerBase {
 					}).finally()
 				break;
 			default:
+				this._setNextVideoId()
+				return this.addVo().finally()
 
 		}
 	}
@@ -278,7 +288,7 @@ class VideoController extends ControllerBase {
 	*/
 	//****************
 
-	_onTimeupdateSignal(mediaSource){
+	_onTimeupdateSignal(mediaSource) {
 		this._userEvents.updateVoPlaybackProgress(mediaSource)
 	}
 
@@ -436,7 +446,7 @@ class VideoController extends ControllerBase {
 		return this._videoPlaylist
 	}
 
-	get userEvents(){
+	get userEvents() {
 		return this._userEvents
 	}
 
@@ -452,7 +462,7 @@ class VideoController extends ControllerBase {
 		return this._state
 	}
 
-	set state(state){
+	set state(state) {
 		this.userEvents.mediaSourceState(state)
 		this._state = state
 	}

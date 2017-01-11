@@ -41,10 +41,7 @@ class VideoControllerApi {
 		this.controller.videoSocket.cancelPreload(_nextId)
 		this.controller.videoPlaylist.next()
 		this.youtubeItemIds.unshift(value)
-		if (this.controller.state === CONTROLLER_STATE.IDLE) {
-			this.controller.addVo().finally()
-		}
-		console.log(value);
+		this.controller.tryPlay()
 	}
 
 	set behavior(b) {
@@ -58,12 +55,13 @@ class VideoControllerApi {
 		this.videoPlaylist.updateYoutubeResults(youtubeResults)
 	}
 
-	removeIdFromPlaylist(videoId){
+	removeIdFromPlaylist(videoId) {
 		this.videoPlaylist.removeId(videoId)
 	}
 
-	moveToFrontPlaylist(videoId){
-		this.videoPlaylist.moveToFront(videoId)
+	moveToFrontPlaylist(videoId, youtubeItem) {
+		this.videoPlaylist.moveToFront(videoId, youtubeItem)
+		this.controller.tryPlay()
 	}
 
 	/*
@@ -81,12 +79,29 @@ class VideoControllerApi {
 	}
 
 	nextVideo() {
-			this.videoPlaylist.next()
+		this.videoPlaylist.next()
+	}
+
+	previousVideo() {
+			this.videoPlaylist.previous()
 		}
 		//0-1
 	seek(percent) {
 		this.videoVideoUtils.seek(percent)
 	}
+
+	seekTimeline(percent) {
+		this.controller.seek(percent)
+	}
+
+	pause() {
+		this.controller.pause()
+	}
+
+	resume() {
+		this.controller.resume()
+	}
+
 }
 
 export default VideoControllerApi;
