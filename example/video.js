@@ -1,4 +1,4 @@
-import { Player, Controller } from 'dash-player'
+import { Player, Controller } from '../index'
 import _ from 'lodash'
 export default class DeuxPlayer {
 

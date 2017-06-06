@@ -2,52 +2,41 @@ import Video from './video'
 import Config from './config'
 import Socket from './socket'
 
-class AudioTrack extends Component {
+const player = new Video({socket: Socket.localsocket })
+player.addSource(config)
+player.start()
 
-	constructor(props) {}
+player.on('MEDIASOURCE_STATE', (state) => {})
 
-	componentDidMount() {
+//the playlist items
+player.on('PLAYLIST', (items) => {})
 
-		this._player = new Video({ el: el, socket: Socket.localsocket })
-		this._player.addSource(config)
-		this._player.start()
+//a new vo chunk has been added
+player.on('VO_ADDED', (vo, msVo) => {})
 
-		this._player.on('MEDIASOURCE_STATE', (state) => {})
+//over
+player.on('VIDEO_FINISHED', (item) => {})
 
-		//the playlist items
-		this._player.on('PLAYLIST', (items) => {})
+//youtube query items []
+		//this.controller.addPlaylistItems(results)
 
-		//a new vo chunk has been added
-		this._player.on('VO_ADDED', (vo, msVo) => {})
+//***********
+//UI API
+//***********
 
-		//over
-		this._player.on('VIDEO_FINISHED', (item) => {})
-	}
+//id exists in player
+	//this.controller.removeIdFromPlaylist(videoId)
 
-	//youtube query items []
-	onInputQuery(results) {
-		this.controller.addPlaylistItems(results)
-	}
+//add a new id
+//	this.controller.moveToFrontPlaylist(videoId, item)
 
-	//***********
-	//UI API
-	//***********
 
-	//id exists in player
-	_removeVideoFromQueue(videoId) {
-		this.controller.removeIdFromPlaylist(videoId)
-	}
-
-	//add a new id
-	_moveVideoToFrontQueue(videoId, item) {
-		this.controller.moveToFrontPlaylist(videoId, item)
-	}
-
-	get controller() {
-		return this._player.vjPlayer.controllers[0]
-	}
-
-	get mediasource() {
-		return this._player.vjPlayer.mediaSources[0][0]
-	}
+//GETS
+/*get controller() {
+	return player.vjPlayer.controllers[0]
 }
+
+get mediasource() {
+	return player.vjPlayer.mediaSources[0][0]
+}
+*/

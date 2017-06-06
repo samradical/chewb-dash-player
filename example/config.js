@@ -1,9 +1,8 @@
 export default [{
 	id: 'videoOne',
 	noAutoStart: false,
-	videoWidth: VIDEO_WIDTH,
-	videoHeight: VIDEO_HEIGHT,
-	verbose: VERBOSE,
+	videoWidth: 640,
+	videoHeight: 360,
 	noVideoCanvas: true,
 	elAttributes: {
 		muted: true
@@ -12,7 +11,6 @@ export default [{
 	//extensions: ['shuffle'],
 	video: true,
 	quality: {
-		resolution: MAX_RESOLUTION,
 		chooseBest: false,
 	},
 	playlists: [
@@ -30,9 +28,8 @@ export default [{
 }, {
 	id: 'videoTwo',
 	noAutoStart: false,
-	videoWidth: VIDEO_WIDTH,
-	videoHeight: VIDEO_HEIGHT,
-	verbose: VERBOSE,
+	videoWidth: 640,
+	videoHeight: 360,
 	noVideoCanvas: true,
 	elAttributes: {
 		muted: true
@@ -41,7 +38,6 @@ export default [{
 	//extensions: ['shuffle'],
 	video: true,
 	quality: {
-		resolution: MAX_RESOLUTION,
 		chooseBest: false,
 	},
 	playlists: [
