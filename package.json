@@ -1,18 +1,19 @@
 {
-  "name": "@samelie/dash-player",
-  "description": "Retreive the sidx of a youtube video from the id.",
-  "homepage": "https://github.com/samelie/dash-player",
+  "name": "chewb-dash-player",
+  "description": "",
+  "homepage": "https://github.com/samradical/chewb-dash-player",
   "author": "Sam Elie <samradelie@gmail.com>",
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "https://github.com/samelie/dash-player.git",
-    "web": "https://github.com/samelie/dash-player/"
+    "url": "https://github.com/samradical/chewb-dash-player.git",
+    "web": "https://github.com/samradical/chewb-dash-player/"
   },
   "main": "index.js",
   "dependencies": {
     "animation-frame": "^0.3.0",
     "bluebird": "^3.4.1",
+    "dash-player-youtube-socket": "0.0.20",
     "isomorphic-fetch": "^2.2.1",
     "jquery": "^3.1.0",
     "load-json-xhr": "^3.0.3",
@@ -50,7 +51,7 @@
     "mpd"
   ],
   "bugs": {
-    "url": "https://github.com/samelie/dash-player/issues"
+    "url": "https://github.com/samradical/chewb-dash-player/issues"
   },
   "engines": {
     "node": ">=5.0.0"
@@ -58,7 +59,7 @@
   "licenses": [
     {
       "type": "MIT",
-      "url": "https://github.com/samelie/dash-player/raw/master/LICENSE"
+      "url": "https://github.com/samradical/chewb-dash-player/raw/master/LICENSE"
     }
   ]
 }

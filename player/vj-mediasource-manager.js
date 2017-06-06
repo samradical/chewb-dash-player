@@ -8,7 +8,7 @@ import {
 
 import Signals from 'signals';
 
-import YoutubeSocket from '@samelie/dash-player-youtube-socket'
+import YoutubeSocket from 'dash-player-youtube-socket'
 
 import VjMediaSource from './vj-mediasource-socket';
 import VjVideoCanvas from './vj-video-canvas';
