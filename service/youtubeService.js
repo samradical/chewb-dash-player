@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import Xhr from 'xhr-request';
 import Q from 'bluebird';
 import _ from 'lodash';
 import QS from 'query-string';
@@ -26,129 +27,137 @@ function _addNextSidx(prom) {
 }
 
 const DEFAULTS = {
-  maxResults:50
+	maxResults: 50
 };
 
-function _getAuth(){
-	return {access_token:Session.youtube.auth.access_token};
+function _getAuth() {
+	return { access_token: Session.youtube.auth.access_token };
 }
 const YT = {
 
 	search(options = {}) {
-      let params = QS.stringify(_.assign({}, {
-        part: 'snippet',
-        maxResults:50,
-        safeSearch:'none'
-      }, options));
+		let params = QS.stringify(_.assign({}, {
+			part: 'snippet',
+			maxResults: 50,
+			safeSearch: 'none'
+		}, options));
 
-			return fetch(`${SEARCH}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${SEARCH}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		video(options = {}) {
-			let params = QS.stringify(_.assign({}, {
-				part: 'contentDetails'
-			}, DEFAULTS, _getAuth(), options));
+	video(options = {}) {
+		let params = QS.stringify(_.assign({}, {
+			part: 'contentDetails'
+		}, DEFAULTS, _getAuth(), options));
 
-			return fetch(`${VIDEO}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${VIDEO}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		userPlaylists(options = {}) {
-			let params = QS.stringify(_.assign({}, {
-				part: 'snippet',
-				mine:true
-			}, DEFAULTS,_getAuth(), options));
+	userPlaylists(options = {}) {
+		let params = QS.stringify(_.assign({}, {
+			part: 'snippet',
+			mine: true
+		}, DEFAULTS, _getAuth(), options));
 
-			return fetch(`${PLAYLISTS}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${PLAYLISTS}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		relatedToVideo(options = {}) {
-			let params = QS.stringify(_.assign({}, {
-				part: 'snippet',
-				relatedToVideoId: options.id,
-				videoDuration: 'any',
-				maxResults: 50,
-				type: 'video',
-				safeSearch: 'none'
-			}, DEFAULTS, _getAuth(), options));
+	relatedToVideo(options = {}) {
+		let params = QS.stringify(_.assign({}, {
+			part: 'snippet',
+			relatedToVideoId: options.id,
+			videoDuration: 'any',
+			maxResults: 50,
+			type: 'video',
+			safeSearch: 'none'
+		}, DEFAULTS, _getAuth(), options));
 
-			return fetch(`${SEARCH}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${SEARCH}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		playlists(options = {}) {
-			let params = QS.stringify(_.assign({}, {
-				part: 'snippet'
-			}, DEFAULTS,_getAuth(), options));
+	playlists(options = {}) {
+		let params = QS.stringify(_.assign({}, {
+			part: 'snippet'
+		}, DEFAULTS, _getAuth(), options));
 
-			return fetch(`${PLAYLISTS}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${PLAYLISTS}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		playlistItems(options){
-			console.log(options);
-			let params = QS.stringify(_.assign({}, {
-				part: 'snippet',
-				videoDuration: 'any',
-				maxResults: 50,
-				type: 'video',
-				safeSearch: 'none'
-			}, DEFAULTS, _getAuth(), options));
+	playlistItems(options) {
+		console.log(options);
+		let params = QS.stringify(_.assign({}, {
+			part: 'snippet',
+			videoDuration: 'any',
+			maxResults: 50,
+			type: 'video',
+			safeSearch: 'none'
+		}, DEFAULTS, _getAuth(), options));
 
-			return fetch(`${PLAYLIST_ITEMS}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${PLAYLIST_ITEMS}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		videoComments(options){
-			let params = QS.stringify(_.assign({}, {
-				part: 'snippet',
-			}, DEFAULTS, _getAuth(), options));
+	videoComments(options) {
+		let params = QS.stringify(_.assign({}, {
+			part: 'snippet',
+		}, DEFAULTS, _getAuth(), options));
 
-			return fetch(`${COMMENT_THREADS}?${params}`).then(response => {
-				return response.json();
-			});
-		},
+		return fetch(`${COMMENT_THREADS}?${params}`).then(response => {
+			return response.json();
+		});
+	},
 
-		serverRelated(id) {
-			let p = new Q((resolve, reject) => {
-				$.get(process.env.SERVER_BASE + 'youtube/video/related', {
-					id: id
-				}).then((data) => {
+	serverRelated(id) {
+		let p = new Q((resolve, reject) => {
+			Xhr(process.env.SERVER_BASE + 'youtube/video/related', {
+				json: true,
+				query: { id: id }
+			}, (err, data) => {
+				if (err) {
+					reject(err)
+				} else {
 					if (data.status === 500) {
 						reject();
 					} else {
 						resolve(JSON.parse(data.body));
 					}
-				}).catch((e) => {
-					reject();
-				});
-			});
-			return _addNextSidx(p);
-		},
+				}
+			})
+		})
+		return _addNextSidx(p);
+	},
 
-		serverPlaylistItems(id) {
-			let p = new Q((resolve, reject) => {
-				$.get(process.env.SERVER_BASE + 'youtube/playlistitems', {
-					id: id
-				}).then((data) => {
+	serverPlaylistItems(id) {
+		let p = new Q((resolve, reject) => {
+
+			Xhr(process.env.SERVER_BASE + 'youtube/playlistitems', {
+				json: true,
+				query: { id: id }
+			}, (err, data) => {
+				if (err) {
+					reject(err)
+				} else {
 					if (data.status === 500) {
 						reject();
 					} else {
-						let l = JSON.parse(data.body);
-						resolve(l);
+						resolve(JSON.parse(data.body));
 					}
-				});
-			});
-			return _addNextSidx(p);
-		}
+				}
+			})
+		})
+		return _addNextSidx(p);
+	}
 
 };
 export default YT;
