@@ -136,8 +136,11 @@ class VideoVOUtils {
 		}
 	}
 
-	isAtLastRef(vo) {
+	isAtLastRef(vo = {}) {
 		let { currentRefIndexs, referencesLength } = vo
+		if(!currentRefIndexs){
+			return
+		}
 		if(!currentRefIndexs.length){
 			return true
 		}

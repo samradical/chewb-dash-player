@@ -76,7 +76,6 @@ class YoutubeVideoSocket {
         range: range
       }, options)
     )
-
   }
 
   preload(mediaSource, videoId) {
@@ -145,7 +144,7 @@ class YoutubeVideoSocket {
 
   _getSidx(vId, options = {}) {
       return this._SocketService
-        .getSidx(_.assign({}, options, { id: vId }))
+        .getSidx(_.assign({itags:["136"]}, options, { id: vId }))
         .then(sidx => {
           return sidx
         })
