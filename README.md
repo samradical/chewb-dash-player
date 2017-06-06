@@ -6,7 +6,7 @@ DeuxTube using Dash Player.
 
 [![Alt text](https://img.youtube.com/vi/yAaHwfu4E8w/0.jpg)](https://www.youtube.com/watch?v=yAaHwfu4E8w)
 
-#Implementation & API
+# Implementation & API
 
 
 See `/example/video-track.js`
