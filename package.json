@@ -3,7 +3,7 @@
   "description": "",
   "homepage": "https://github.com/samradical/chewb-dash-player",
   "author": "Sam Elie <samradelie@gmail.com>",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "repository": {
     "type": "git",
     "url": "https://github.com/samradical/chewb-dash-player.git",
@@ -13,7 +13,7 @@
   "dependencies": {
     "animation-frame": "^0.3.0",
     "bluebird": "^3.4.1",
-    "dash-player-youtube-socket": "^0.0.20",
+    "chewb-dash-player-youtube-socket": "*",
     "isomorphic-fetch": "^2.2.1",
     "load-json-xhr": "^3.0.3",
     "lodash": "^4.13.1",
